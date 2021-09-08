@@ -34,8 +34,8 @@ export default class Course {
             this.holedata[i] = { par: 0 };
         }
 
-        this.holeoverlay = [ false, false, false, false, false, false, false, false ];
-        this.heavyrough = false;
+        this.holeoverlay = [ 0, 0, 0, 0, 0, 0, 0, 0 ];
+        this.outofbounds = 0;
 
         this.palette = new Palette();
 
@@ -85,10 +85,8 @@ export default class Course {
         // mystery data data[40]
 
         // flags
-        this.heavyrough = data[527] == 0x01;
-        for(let i = 0; i < 8; i++) {
-            this.holeoverlay[i] = data[528+i] == 0x01;
-        }
+        this.outofbounds = data[527];
+        this.holeoverlay = data.slice(528, 536);
 
         // palette
         this.palette.values = data.slice(536, 1304);

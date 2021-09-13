@@ -52,17 +52,16 @@ export default class Toolbar {
                 toolbarVisible = true;
             }
         });
-
-        // container for next input elements
-        this.currentGroup = null;
     }
 
 
 
     /**
-     * Add a container to group input elements.
+     * Add a container to group input controls.
      *
      * @param title header for group
+     *
+     * @return DOM element for the group of controls
      */
     addControlGroup(title) {
         let groupElement = document.createElement("div");
@@ -73,7 +72,20 @@ export default class Toolbar {
         groupTitle.appendChild(document.createTextNode(title));
         groupElement.appendChild(groupTitle);
 
-        this.currentGroup = groupElement;
+        return groupElement;
+    }
+
+    /**
+     * Add a container to group buttons.
+     *
+     * @return DOM element for the group of buttons
+     */
+    addButtonGroup() {
+        let groupElement = document.createElement("div");
+        groupElement.classList.add("button-group");
+        this.container.appendChild(groupElement);
+
+        return groupElement;
     }
 
 
@@ -81,16 +93,17 @@ export default class Toolbar {
     /**
      * Add a text field input with a set maximum length.
      *
+     * @param group DOM element for the group of controls
      * @param title label for input
      * @param maxLength max number of characters
      * @param callback callback when value changes
      *
      * @return input element with value
      */
-    addTextField(title, maxLength, callback) {
+    addTextField(group, title, maxLength, callback) {
         let fieldElement = document.createElement("div");
         fieldElement.classList.add("control-item");
-        this.currentGroup.appendChild(fieldElement);
+        group.appendChild(fieldElement);
         let fieldTitle = document.createElement("div");
         fieldTitle.classList.add("control-item-title");
         fieldTitle.appendChild(document.createTextNode(title));
@@ -108,16 +121,17 @@ export default class Toolbar {
     /**
      * Add a text area input with a set maximum length.
      *
+     * @param group DOM element for the group of controls
      * @param title label for input
      * @param maxLength max number of characters
      * @param callback callback when value changes
      *
      * @return input element with value
      */
-    addTextArea(title, maxLength, callback) {
+    addTextArea(group, title, maxLength, callback) {
         let areaElement = document.createElement("div");
         areaElement.classList.add("control-item");
-        this.currentGroup.appendChild(areaElement);
+        group.appendChild(areaElement);
         let areaTitle = document.createElement("div");
         areaTitle.classList.add("control-item-title");
         areaTitle.appendChild(document.createTextNode(title));
@@ -135,16 +149,17 @@ export default class Toolbar {
     /**
      * Add a drop down menu with defined options.
      *
+     * @param group DOM element for the group of controls
      * @param title label for input
      * @param options array of strings to display
      * @param callback callback when value changes
      *
      * @return input element with value
      */
-    addDropdown(title, options, callback) {
+    addDropdown(group, title, options, callback) {
         let dropElement = document.createElement("div");
         dropElement.classList.add("control-item");
-        this.currentGroup.appendChild(dropElement);
+        group.appendChild(dropElement);
         let dropTitle = document.createElement("div");
         dropTitle.classList.add("control-item-title");
         dropTitle.appendChild(document.createTextNode(title));
@@ -162,6 +177,21 @@ export default class Toolbar {
         dropValue.addEventListener("change", (e) => { dropValue.blur(); });
         dropElement.appendChild(dropValue);
         return dropValue;
+    }
+
+    /**
+     * Add a button.
+     *
+     * @param group DOM element for the group of buttons
+     * @param title label for input
+     * @param callback callback when button is clicked
+     */
+    addButton(group, title, callback) {
+        let buttonElement = document.createElement("div");
+        buttonElement.classList.add("button-item");
+        buttonElement.appendChild(document.createTextNode(title));
+        buttonElement.addEventListener("click", callback);
+        group.appendChild(buttonElement);
     }
 
 }

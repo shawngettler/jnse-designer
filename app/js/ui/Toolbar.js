@@ -194,4 +194,42 @@ export default class Toolbar {
         group.appendChild(buttonElement);
     }
 
+
+
+    /**
+     * Add an image of a land plot with control buttons.
+     *
+     * @param group DOM element for the group of controls
+     * @param width image width
+     * @param height image height
+     * @param showCallback callback when show/hide is clicked
+     * @param zoomCallback callback when zoom is clicked
+     *
+     * @return image element with value to set
+     */
+    addPlot(group, width, height, showCallback, zoomCallback) {
+        let plotElement = document.createElement("div");
+        plotElement.classList.add("control-item");
+        group.appendChild(plotElement);
+        let plotCanvas = document.createElement("canvas");
+        plotCanvas.classList.add("control-item-plot-canvas");
+        plotCanvas.width = width;
+        plotCanvas.height = height;
+        plotElement.appendChild(plotCanvas);
+        let plotButtonGroup = document.createElement("div");
+        plotButtonGroup.classList.add("control-item-plot-button-group");
+        plotElement.appendChild(plotButtonGroup);
+        let showButton = document.createElement("div");
+        showButton.classList.add("control-item-plot-button-item");
+        showButton.appendChild(document.createTextNode("SHOW"));
+        showButton.addEventListener("click", showCallback);
+        plotButtonGroup.appendChild(showButton);
+        let zoomButton = document.createElement("div");
+        zoomButton.classList.add("control-item-plot-button-item");
+        zoomButton.appendChild(document.createTextNode("ZOOM TO"));
+        zoomButton.addEventListener("click", zoomCallback);
+        plotButtonGroup.appendChild(zoomButton);
+        return plotCanvas;
+    }
+
 }

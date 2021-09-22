@@ -1,0 +1,25 @@
+/**
+ * index.css
+ * @author @shawngettler
+ *
+ * Base style sheet for app.
+ */
+
+
+
+/* app */
+body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+
+    background-color: rgba(31, 31, 31, 1.0);
+}
+
+#app-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    right: 0;
+}

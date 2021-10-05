@@ -29,13 +29,17 @@ export default class Course {
 
         // metadata
         this.name = "Unnamed Course";
-        this.holedata = [];
+        this.x = 0;
+        this.y = 0;
+        this.r = 0;
+
+        this.holeData = [];
         for(let i = 0; i < 18; i++) {
-            this.holedata[i] = { par: 0 };
+            this.holeData[i] = { par: 0 };
         }
 
-        this.holeoverlay = [ 0, 0, 0, 0, 0, 0, 0, 0 ];
-        this.outofbounds = 0;
+        this.holeOverlay = [ 0, 0, 0, 0, 0, 0, 0, 0 ];
+        this.outOfBounds = 0;
 
         this.palette = new Palette();
 
@@ -48,7 +52,7 @@ export default class Course {
 
         // images
         this.panorama = new Panorama();
-        this.objectlib;
+        this.objectData;
     }
 
 
@@ -87,15 +91,14 @@ export default class Course {
 
         // hole routing
         for(let i = 0; i < 18; i++) {
-            this.holedata[i] = {
-                par: data[22+i],
-                x: int16([data[41+i*2], data[41+i*2+1]]),
-                y: int16([data[77+i*2], data[77+i*2+1]]),
-                r: int16([data[113+i*2], data[113+i*2+1]]), // out of 600
-                v: []
-            };
+            this.holeData[i].par = data[22+i];
+            this.holeData[i].x = int16([data[41+i*2], data[41+i*2+1]]);
+            this.holeData[i].y = int16([data[77+i*2], data[77+i*2+1]]);
+            this.holeData[i].r = int16([data[113+i*2], data[113+i*2+1]]);
+
+            this.holeData[i].v = [];
             for(let j = 0; j < data[149+i]; j++) {
-                this.holedata[i].v[j] = {
+                this.holeData[i].v[j] = {
                     x: int16([data[167+i*10+j*2], data[167+i*10+j*2+1]]),
                     y: int16([data[347+i*10+j*2], data[347+i*10+j*2+1]])
                 };
@@ -105,8 +108,8 @@ export default class Course {
         // mystery data data[40]
 
         // flags
-        this.outofbounds = data[527];
-        this.holeoverlay = data.slice(528, 536);
+        this.outOfBounds = data[527];
+        this.holeOverlay = data.slice(528, 536);
 
         // palette
         this.palette.values = data.slice(536, 1304);

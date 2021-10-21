@@ -13,7 +13,7 @@
 export default class Editor {
 
     // editor states
-    static LAYOUT_VIEW = "hole layout";
+    static LAYOUT_EDIT = "edit hole layout";
 
 
 
@@ -32,7 +32,7 @@ export default class Editor {
         this.editorScaleMax = 100;
         this.editorScaleMin = 0.01;
 
-        this.state = Editor.LAYOUT_VIEW;
+        this.state = Editor.LAYOUT_EDIT;
 
         let editorElement = document.createElement("div");
         editorElement.id = "editor";
@@ -47,6 +47,41 @@ export default class Editor {
         // user input
         this.canvas.addEventListener("contextmenu", (e) => {
             e.preventDefault();
+        });
+
+        this.vertexOver = null;
+        this.vertexDragging = null;
+
+        this.canvas.addEventListener("mousemove", (e) => {
+            if(this.state === Editor.LAYOUT_EDIT) {
+                this.vertexOver = this.queryHoleRoute(e.offsetX, e.offsetY);
+                if(this.vertexDragging) {
+                    let q = this.xfScreenToHole({ x: e.offsetX, y: e.offsetY }, this.vertexDragging.hole);
+                    this.vertexDragging.p.x = Math.floor(q.x);
+                    this.vertexDragging.p.y = Math.floor(q.y);
+                    this.update();
+                } else if(this.vertexOver) {
+                    this.canvas.style.cursor = "move";
+                } else {
+                    this.canvas.style.cursor = "";
+                }
+            }
+        });
+        this.canvas.addEventListener("mousedown", (e) => {
+            if(this.state === Editor.LAYOUT_EDIT) {
+                if(this.vertexOver) {
+                    this.vertexDragging = this.vertexOver;
+                    this.canvas.style.cursor = "none";
+                }
+            }
+        });
+        this.canvas.addEventListener("mouseup", (e) => {
+            if(this.state === Editor.LAYOUT_EDIT) {
+                if(this.vertexDragging) {
+                    this.vertexDragging = null;
+                    this.canvas.style.cursor = "move";
+                }
+            }
         });
 
 
@@ -84,49 +119,14 @@ export default class Editor {
         let ctx = this.canvas.getContext("2d");
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        const drawPolyline = (coords) => {
-            ctx.beginPath();
-            for(let c of coords) {
-                let cc = this.xfRefScreen(c);
-                ctx.lineTo(cc.x, cc.y);
-            }
-            ctx.stroke();
-        };
-
-
-        if(this.state === Editor.LAYOUT_VIEW) {
-            let plotBox = [
-                this.xfPlotRef({ x: 0, y: 0 }),
-                this.xfPlotRef({ x: 0, y: 120 }),
-                this.xfPlotRef({ x: 240, y:120 }),
-                this.xfPlotRef({ x: 240, y: 0 })
-            ];
-            ctx.strokeStyle = "red";
-            drawPolyline(plotBox.slice(-1).concat(plotBox));
-
-            let holeBox = [];
-            let holeRoute = [];
+        if(this.state === Editor.LAYOUT_EDIT) {
             for(let i = 0; i < 18; i++) {
                 if(this.course.holeData[i].par != 0) {
-                    holeBox[i] = [
-                        this.xfPlotRef(this.xfHolePlot({ x: 0, y: 0 }, i)),
-                        this.xfPlotRef(this.xfHolePlot({ x: 0, y: 80 }, i)),
-                        this.xfPlotRef(this.xfHolePlot({ x: 240, y: 80 }, i)),
-                        this.xfPlotRef(this.xfHolePlot({ x: 240, y: 0 }, i))
-                    ];
-                    ctx.strokeStyle = "red";
-                    drawPolyline(holeBox[i].slice(-1).concat(holeBox[i]));
-
-                    holeRoute[i] = [];
-                    for(let v of this.course.holeData[i].v) {
-                        holeRoute[i].push(this.xfPlotRef(this.xfHolePlot(v, i)));
-                    }
-                    ctx.strokeStyle = "white";
-                    drawPolyline(holeRoute[i]);
+                    this.drawHoleRoute(ctx, this.course.holeData[i].v.map((p) => { return this.xfHoleToScreen(p, i); }));
                 }
             }
-        }
 
+        }
     }
 
 
@@ -144,60 +144,175 @@ export default class Editor {
 
 
     /**
-     * Transform point into new coordinate system.
+     * Transform a point from a local coordinate system defined in terms of the
+     * global coordinate system to the global coordinate system.
      *
-     * @param p point object
-     * @param dr rotation change in JNSE 1/600 fraction
-     * @param ds scale change
-     * @param dx position change in x
-     * @param dy position change in y
+     * @param p point object in local coordinates
+     * @param dr local coordinate rotation in JNSE 1/600 fraction
+     * @param ds local coordinate scale
+     * @param dx local coordinate origin x
+     * @param dy local coordinate origin y
      *
-     * @return point object in new coordinates
+     * @return point object in global coordinates
      */
-    xfPoint(p, dr, ds, dx, dy) {
+    xfPointFromCoords(p, dr, ds, dx, dy) {
         const sin = (r) => { return Math.sin(2*Math.PI * r/600); };
         const cos = (r) => { return Math.cos(2*Math.PI * r/600); };
         const trans = (p) => { return { x: p.x + dx, y: p.y + dy }; };
-        const scale = (p) => { return { x: p.x*ds, y: p.y*ds }; };
+        const scale = (p) => { return { x: p.x/ds, y: p.y/ds }; };
         const rota = (p) => { return { x: p.x*cos(dr) - p.y*sin(dr), y: p.x*sin(dr) + p.y*cos(dr) }; };
 
         return trans(scale(rota(p)));
     }
 
     /**
-     * Transform a point from the global reference coordinate system to the
-     * screen.
+     * Transform a point from the global coordinate system to a local coordinate
+     * system defined in terms of the global coordinate system.
      *
      * @param p point object in global coordinates
+     * @param dr local coordinate rotation in JNSE 1/600 fraction
+     * @param ds local coordinate scale
+     * @param dx local coordinate origin x
+     * @param dy local coordinate origin y
      *
-     * @return point object in screen coordinates
+     * @return point object in local coordinates
      */
-    xfRefScreen(p) {
-        return this.xfPoint(p, -this.editorR, this.editorScale, this.editorX, this.editorY);
+    xfPointToCoords(p, dr, ds, dx, dy) {
+        const sin = (r) => { return Math.sin(2*Math.PI * r/600); };
+        const cos = (r) => { return Math.cos(2*Math.PI * r/600); };
+        const trans = (p) => { return { x: p.x - dx, y: p.y - dy }; };
+        const scale = (p) => { return { x: p.x*ds, y: p.y*ds }; };
+        const rota = (p) => { return { x: p.x*cos(-dr) - p.y*sin(-dr), y: p.x*sin(-dr) + p.y*cos(-dr) }; };
+
+        return rota(scale(trans(p)));
     }
 
     /**
-     * Transform a point from course plot coordinates to global reference
+     * Transform a point from the reference coordinate system to the screen.
+     *
+     * @param p point object in reference coordinates
+     *
+     * @return point object in screen coordinates
+     */
+    xfRefToScreen(p) {
+        return this.xfPointFromCoords(p, -this.editorR, 1/this.editorScale, this.editorX, this.editorY);
+    }
+
+    /**
+     * Transform a point from the screen to the reference coordinate system.
+     *
+     * @param p point object in screen coordinates
+     *
+     * @return point object in reference coordinates
+     */
+    xfScreenToRef(p) {
+        return this.xfPointToCoords(p, -this.editorR, 1/this.editorScale, this.editorX, this.editorY);
+    }
+
+    /**
+     * Transform a point from course plot (pixel) coordinates to the reference
      * coordinate system.
      *
      * @param p point object in course plot coordinates
      *
-     * @return point object in global coordinates
+     * @return point object in reference coordinates
      */
-    xfPlotRef(p) {
-        return this.xfPoint(p, -this.course.r, 32, this.course.x, this.course.y);
+    xfPlotToRef(p) {
+        return this.xfPointFromCoords(p, -this.course.r, 1/32, this.course.x, this.course.y);
     }
 
-     /**
-      * Transform a point from hole coordinates to course plot coordinates.
-      *
-      * @param p point object in hole coordinates
-      * @param i hole number
-      *
-      * @return point object in course plot coordinates
-      */
-    xfHolePlot(p, i) {
-        return this.xfPoint(p, -this.course.holeData[i].r, 8/32, this.course.holeData[i].x, this.course.holeData[i].y);
+    /**
+     * Transform a point from the reference coordinate system to course plot
+     * (pixel) coordinates.
+     *
+     * @param p point object in reference coordinates
+     *
+     * @return point object in course plot coordinates
+     */
+    xfRefToPlot(p) {
+        return this.xfPointToCoords(p, -this.course.r, 1/32, this.course.x, this.course.y);
     }
+
+    /**
+     * Transform a point from hole (pixel) coordinates to course plot (pixel)
+     * coordinates.
+     *
+     * @param p point object in hole coordinates
+     * @param i hole number
+     *
+     * @return point object in course plot coordinates
+     */
+    xfHoleToPlot(p, i) {
+        return this.xfPointFromCoords(p, -this.course.holeData[i].r, 32/8, this.course.holeData[i].x, this.course.holeData[i].y);
+    }
+
+    /**
+     * Transform a point from course plot (pixel) coordinates to hole (pixel)
+     * coordinates.
+     *
+     * @param p point object in course plot coordinates
+     * @param i hole number
+     *
+     * @return point object in hole coordinates
+     */
+    xfPlotToHole(p, i) {
+        return this.xfPointToCoords(p, -this.course.holeData[i].r, 32/8, this.course.holeData[i].x, this.course.holeData[i].y);
+    }
+
+    /*
+     * Shortcuts.
+     */
+    xfPlotToScreen(p) { return this.xfRefToScreen(this.xfPlotToRef(p)); }
+    xfScreenToPlot(p) { return this.xfRefToPlot(this.xfScreenToRef(p)); }
+    xfHoleToScreen(p, i) { return this.xfRefToScreen(this.xfPlotToRef(this.xfHoleToPlot(p, i))); }
+    xfScreenToHole(p, i) { return this.xfPlotToHole(this.xfRefToPlot(this.xfScreenToRef(p)), i); }
+
+
+
+    /**
+     * Check for a hole routing vertex at the canvas position. Checks a 6x6
+     * pixel box around the vertex.
+     *
+     * @param cx x position in screen coordinates
+     * @param cy y position in screen coordinates
+     *
+     * @return object containing the vertex and hole number or null if none
+     */
+    queryHoleRoute(cx, cy) {
+        for(let i = 0; i < 18; i++) {
+            if(this.course.holeData[i].par != 0) {
+                for(let p of this.course.holeData[i].v) {
+                    let q = this.xfHoleToScreen(p, i);
+                    if(q.x-cx <= 3 && cx-q.x <= 3 && q.y-cy <= 3 && cy-q.y <= 3) {
+                        return { p: p, hole: i };
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Draw hole routing.
+     *
+     * @param ctx drawing context
+     * @param route array of hole routing vertices in screen coordinates
+     */
+    drawHoleRoute(ctx, route) {
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = "rgba(252, 252, 252, 1.0)";
+        ctx.beginPath()
+        for(let p of route) {
+            ctx.lineTo(p.x, p.y);
+        }
+        ctx.stroke();
+
+        ctx.strokeStyle = "rgba(252, 252, 252, 1.0)";
+        ctx.fillStyle = "rgba(252, 252, 252, 1.0)";
+        for(let p of route) {
+            ctx.fillRect(p.x-3, p.y-3, 6, 6);
+        }
+    }
+
 
 }

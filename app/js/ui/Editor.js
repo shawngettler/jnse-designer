@@ -13,6 +13,7 @@
 export default class Editor {
 
     // editor states
+    static LAYOUT_ADD = "add hole layout";
     static LAYOUT_EDIT = "edit hole layout";
 
 
@@ -34,6 +35,7 @@ export default class Editor {
 
         this.state = Editor.LAYOUT_EDIT;
 
+
         let editorElement = document.createElement("div");
         editorElement.id = "editor";
         document.getElementById("app-container").appendChild(editorElement);
@@ -50,15 +52,23 @@ export default class Editor {
         });
 
         this.vertexOver = null;
-        this.vertexDragging = null;
+        this.vertexMove = null;
 
         this.canvas.addEventListener("mousemove", (e) => {
+            if(this.state === Editor.LAYOUT_ADD) {
+                if(this.vertexMove) {
+                    let q = this.xfScreenToHole({ x: e.offsetX, y: e.offsetY }, this.vertexMove.hole);
+                    this.vertexMove.p.x = q.x;
+                    this.vertexMove.p.y = q.y;
+                    this.update();
+                }
+            }
             if(this.state === Editor.LAYOUT_EDIT) {
-                this.vertexOver = this.queryHoleRoute(e.offsetX, e.offsetY);
-                if(this.vertexDragging) {
-                    let q = this.xfScreenToHole({ x: e.offsetX, y: e.offsetY }, this.vertexDragging.hole);
-                    this.vertexDragging.p.x = Math.floor(q.x);
-                    this.vertexDragging.p.y = Math.floor(q.y);
+                this.vertexOver = this.queryRoutingVertex(e.offsetX, e.offsetY);
+                if(this.vertexMove) {
+                    let q = this.xfScreenToHole({ x: e.offsetX, y: e.offsetY }, this.vertexMove.hole);
+                    this.vertexMove.p.x = Math.floor(q.x);
+                    this.vertexMove.p.y = Math.floor(q.y);
                     this.update();
                 } else if(this.vertexOver) {
                     this.canvas.style.cursor = "move";
@@ -69,16 +79,24 @@ export default class Editor {
         });
         this.canvas.addEventListener("mousedown", (e) => {
             if(this.state === Editor.LAYOUT_EDIT) {
-                if(this.vertexOver) {
-                    this.vertexDragging = this.vertexOver;
+                if(this.vertexOver && e.button == 0) {
+                    this.vertexMove = this.vertexOver;
                     this.canvas.style.cursor = "none";
                 }
             }
         });
         this.canvas.addEventListener("mouseup", (e) => {
+            if(this.state === Editor.LAYOUT_ADD) {
+                if(e.button == 0) {
+                    this.addRouting(this.vertexMove.hole);
+                } else if(e.button == 2) {
+                    this.endRouting(this.vertexMove.hole);
+                    this.update();
+                }
+            }
             if(this.state === Editor.LAYOUT_EDIT) {
-                if(this.vertexDragging) {
-                    this.vertexDragging = null;
+                if(this.vertexMove && e.button == 0) {
+                    this.vertexMove = null;
                     this.canvas.style.cursor = "move";
                 }
             }
@@ -96,7 +114,7 @@ export default class Editor {
             this.update();
         });
         this.canvas.addEventListener("mousemove", (e) => {
-            if(e.buttons == 3) {
+            if(e.buttons == 4) {
                 this.editorX += e.movementX;
                 this.editorY += e.movementY;
                 this.update();
@@ -119,14 +137,13 @@ export default class Editor {
         let ctx = this.canvas.getContext("2d");
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        if(this.state === Editor.LAYOUT_EDIT) {
+        if(this.state === Editor.LAYOUT_ADD || this.state === Editor.LAYOUT_EDIT) {
             for(let i = 0; i < 18; i++) {
-                if(this.course.holeData[i].par != 0) {
-                    this.drawHoleRoute(ctx, this.course.holeData[i].v.map((p) => { return this.xfHoleToScreen(p, i); }));
-                }
+                this.drawRouting(ctx, i);
+                this.drawRoutingBounds(ctx, i);
             }
-
         }
+
     }
 
 
@@ -270,6 +287,104 @@ export default class Editor {
 
 
     /**
+     * Add a vertex to the hole routing.
+     *
+     * @param hole hole number (optional)
+     */
+    addRouting(hole) {
+        let p = { x: 0, y: 0 };
+        this.course.holeData[hole].v.push(p);
+        this.vertexMove = { p: p, hole: hole };
+
+        this.state = Editor.LAYOUT_ADD;
+        this.canvas.style.cursor = "none";
+    }
+
+    /**
+     * Stop editing the hole routing and recenter hole coordinates. If there are
+     * fewer than two vertices, reset the routing.
+     *
+     * @param hole hole number
+     */
+    endRouting(hole) {
+        this.course.holeData[hole].v.pop();
+        this.vertexMove = null;
+
+        this.state = Editor.LAYOUT_EDIT;
+        this.canvas.style.cursor = "";
+
+        let data = this.course.holeData[hole];
+        if(data.v.length < 2) {
+            data.v = [];
+        } else {
+            let vc = data.v.map((p) => { return this.xfHoleToPlot(p, hole); });
+
+            let d = Math.hypot(vc[vc.length-1].x-vc[0].x, vc[vc.length-1].y-vc[0].y);
+            let u = { x: (vc[vc.length-1].x-vc[0].x) / d, y: (vc[vc.length-1].y-vc[0].y) / d };
+            let vmin = 0;
+            let vmax = 0;
+            for(let p of vc) {
+                vmin = Math.min(vmin, (p.x-vc[0].x)*u.y - (p.y-vc[0].y)*u.x);
+                vmax = Math.max(vmax, (p.x-vc[0].x)*u.y - (p.y-vc[0].y)*u.x);
+            }
+            data.x = Math.floor(vc[0].x + (d/2-30)*u.x + ((vmin+vmax)/2+10)*u.y);
+            data.y = Math.floor(vc[0].y + (d/2-30)*u.y - ((vmin+vmax)/2+10)*u.x);
+            data.r = Math.floor(-Math.atan2(u.y, u.x)/(2*Math.PI) * 600);
+            data.v = vc.map((p) => { return this.xfPlotToHole(p, hole); });
+            data.v = data.v.map((p) => { return { x: Math.floor(p.x), y: Math.floor(p.y) }; });
+
+            let yds = 0;
+            for(let i = 1; i < data.v.length; i++) {
+                yds += Math.hypot(data.v[i].x-data.v[i-1].x, data.v[i].y-data.v[i-1].y) * 8/3;
+            }
+            data.par = yds < 450 ? yds < 240 ? 3 : 4 : 5;
+        }
+    }
+
+    /**
+     * Draw hole routing.
+     *
+     * @param ctx drawing context
+     * @param hole hole number
+     */
+    drawRouting(ctx, hole) {
+        let v = this.course.holeData[hole].v.map((p) => { return this.xfHoleToScreen(p, hole); })
+
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = "rgba(252, 252, 252, 1.0)";
+        ctx.beginPath()
+        for(let p of v) {
+            ctx.lineTo(p.x, p.y);
+        }
+        ctx.stroke();
+
+        ctx.strokeStyle = "rgba(252, 252, 252, 1.0)";
+        ctx.fillStyle = "rgba(252, 252, 252, 1.0)";
+        for(let p of v) {
+            ctx.fillRect(p.x-3, p.y-3, 6, 6);
+        }
+    }
+
+    /**
+     * Draw bounding box for hole routing and plot.
+     *
+     * @param ctx drawing context
+     * @param hole hole number
+     */
+    drawRoutingBounds(ctx, hole) {
+        let b = [ { x: 0, y: 0 }, { x: 0, y: 80 }, { x: 240, y: 80 }, { x: 240, y: 0 }, { x: 0, y: 0 } ];
+        let bs = b.map((p) => { return this.xfHoleToScreen(p, hole); });
+
+        ctx.lineWidth = 0.5;
+        ctx.strokeStyle = "rgba(252, 84, 84, 1.0)";
+        ctx.beginPath()
+        for(let p of bs) {
+            ctx.lineTo(p.x, p.y);
+        }
+        ctx.stroke();
+    }
+
+    /**
      * Check for a hole routing vertex at the canvas position. Checks a 6x6
      * pixel box around the vertex.
      *
@@ -278,40 +393,16 @@ export default class Editor {
      *
      * @return object containing the vertex and hole number or null if none
      */
-    queryHoleRoute(cx, cy) {
+    queryRoutingVertex(cx, cy) {
         for(let i = 0; i < 18; i++) {
-            if(this.course.holeData[i].par != 0) {
-                for(let p of this.course.holeData[i].v) {
-                    let q = this.xfHoleToScreen(p, i);
-                    if(q.x-cx <= 3 && cx-q.x <= 3 && q.y-cy <= 3 && cy-q.y <= 3) {
-                        return { p: p, hole: i };
-                    }
+            for(let p of this.course.holeData[i].v) {
+                let q = this.xfHoleToScreen(p, i);
+                if(q.x-cx <= 3 && cx-q.x <= 3 && q.y-cy <= 3 && cy-q.y <= 3) {
+                    return { p: p, hole: i };
                 }
             }
         }
         return null;
-    }
-
-    /**
-     * Draw hole routing.
-     *
-     * @param ctx drawing context
-     * @param route array of hole routing vertices in screen coordinates
-     */
-    drawHoleRoute(ctx, route) {
-        ctx.lineWidth = 1.5;
-        ctx.strokeStyle = "rgba(252, 252, 252, 1.0)";
-        ctx.beginPath()
-        for(let p of route) {
-            ctx.lineTo(p.x, p.y);
-        }
-        ctx.stroke();
-
-        ctx.strokeStyle = "rgba(252, 252, 252, 1.0)";
-        ctx.fillStyle = "rgba(252, 252, 252, 1.0)";
-        for(let p of route) {
-            ctx.fillRect(p.x-3, p.y-3, 6, 6);
-        }
     }
 
 

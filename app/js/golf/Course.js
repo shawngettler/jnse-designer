@@ -35,7 +35,13 @@ export default class Course {
 
         this.holeData = [];
         for(let i = 0; i < 18; i++) {
-            this.holeData[i] = { par: 0 };
+            this.holeData[i] = {
+                par: 0,
+                x: 0,
+                y: 0,
+                r: 0,
+                v: []
+            };
         }
 
         this.holeOverlay = [ 0, 0, 0, 0, 0, 0, 0, 0 ];

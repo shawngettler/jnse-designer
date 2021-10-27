@@ -78,12 +78,14 @@ export default class Toolbar {
     /**
      * Add a container to group buttons.
      *
+     * @param group DOM element for the group of controls
+     *
      * @return DOM element for the group of buttons
      */
-    addButtonGroup() {
+    addButtonGroup(group) {
         let groupElement = document.createElement("div");
         groupElement.classList.add("button-group");
-        this.container.appendChild(groupElement);
+        group.appendChild(groupElement);
 
         return groupElement;
     }
@@ -115,6 +117,20 @@ export default class Toolbar {
         fieldValue.addEventListener("change", callback);
         fieldValue.addEventListener("keydown", (e) => { if(e.key === "Enter") fieldValue.blur(); });
         fieldElement.appendChild(fieldValue);
+        return fieldValue;
+    }
+
+    /**
+     * Add a non-editable text field.
+     *
+     * @param group DOM element for the group of controls
+     * @param title label for input
+     *
+     * @return input element with value
+     */
+    addText(group, title) {
+        let fieldValue = this.addTextField(group, title, 99, null);
+        fieldValue.readonly = true;
         return fieldValue;
     }
 
@@ -185,13 +201,17 @@ export default class Toolbar {
      * @param group DOM element for the group of buttons
      * @param title label for input
      * @param callback callback when button is clicked
+     *
+     * @return button element
      */
     addButton(group, title, callback) {
-        let buttonElement = document.createElement("div");
+        let buttonElement = document.createElement("button");
         buttonElement.classList.add("button-item");
         buttonElement.appendChild(document.createTextNode(title));
         buttonElement.addEventListener("click", callback);
         group.appendChild(buttonElement);
+
+        return buttonElement;
     }
 
 

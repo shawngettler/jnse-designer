@@ -64,6 +64,23 @@ export default class Course {
 
 
     /**
+     * Calculate length along hole routing.
+     *
+     * @param hole hole number
+     *
+     * @return length in yards
+     */
+    getHoleLength(hole) {
+        let yds = 0;
+        for(let i = 1; i < this.holeData[hole].v.length; i++) {
+            yds += Math.hypot(this.holeData[hole].v[i].x-this.holeData[hole].v[i-1].x, this.holeData[hole].v[i].y-this.holeData[hole].v[i-1].y) * 8/3;
+        }
+        return yds;
+    }
+
+
+
+    /**
      * Create an image representing the land plot using the course palette.
      *
      * @param map byte array of terrain data

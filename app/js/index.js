@@ -23,6 +23,7 @@ import Toolbar from "./ui/Toolbar.js";
     // editor interface
     let editor = new Editor(project.course);
     editor.canvas.addEventListener("courseupdate", (e) => { updateToolbar(); });
+    editor.canvas.addEventListener("plotupdate", (e) => { updatePlot(e.detail); });
 
     // side bar
     let toolbar = new Toolbar("JNSE Course Designer");
@@ -42,6 +43,7 @@ import Toolbar from "./ui/Toolbar.js";
     let courseWindSpeedInput = toolbar.addDropdown(courseGroup, "Wind Speed", ["None", "Gentle", "Medium", "Strong"], (e) => { project.course.plot.windSpeed = parseInt(e.target.value); });
     let courseWindDirInput = toolbar.addDropdown(courseGroup, "Wind Direction", ["n/a", "North", "Northeast", "East", "Southeast", "South", "Southwest", "West", "Northwest"], (e) => { project.course.plot.windDir = parseInt(e.target.value); });
     let coursePlot = toolbar.addPlot(courseGroup, 240, 120, null, null);
+    updatePlot(18);
 
     let holeGroup = [];
     let holeParInput = [];
@@ -64,6 +66,7 @@ import Toolbar from "./ui/Toolbar.js";
         holeQuoteInput[i] = toolbar.addTextArea(holeGroup[i], "Hole Quote", 120, (e) => { project.course.holes[i].quote = e.target.value; });
         holeWallInput[i] = toolbar.addDropdown(holeGroup[i], "Wall Style", ["No Walls", "Railroad Ties", "Stone Walls"], (e) => { project.course.outofbounds = parseInt(e.target.value); });
         holePlot[i] = toolbar.addPlot(holeGroup[i], 240, 80, null, null);
+        updatePlot(i);
     }
 
     updateToolbar();
@@ -79,7 +82,6 @@ import Toolbar from "./ui/Toolbar.js";
         courseBoundsInput.value = project.course.outOfBounds;
         courseWindSpeedInput.value = project.course.plot.windSpeed;
         courseWindDirInput.value = project.course.plot.windDir;
-        // coursePlot.getContext("2d").putImageData(new ImageData(project.course.renderPlot(project.course.plot.map), 240), 0, 0);
 
         for(let i = 0; i < 18; i++) {
             holeParInput[i].value = project.course.holeData[i].par - 3;
@@ -95,11 +97,16 @@ import Toolbar from "./ui/Toolbar.js";
             }
             holeQuoteInput[i].value = project.course.holes[i].quote;
             holeWallInput[i].value = project.course.holes[i].wallStyle;
-            // holePlot[i].getContext("2d").putImageData(new ImageData(project.course.renderPlot(project.course.holes[i].map), 240), 0, 0);
         }
-
-        editor.update();
     };
+
+    function updatePlot(hole) {
+        if(hole == 18) {
+            coursePlot.getContext("2d").putImageData(new ImageData(editor.plotImgData[hole], 240), 0, 0);
+        } else {
+            holePlot[hole].getContext("2d").putImageData(new ImageData(editor.plotImgData[hole], 240), 0, 0);
+        }
+    }
 
 
 
@@ -124,10 +131,12 @@ import Toolbar from "./ui/Toolbar.js";
                     }
                     if(ext === "LDM") {
                         project.course.plot.loadData(JNSEBinaryData.expandFile(bytes));
+                        editor.renderPlot(18);
                     }
                     for(let i = 0; i < 18; i++) {
                         if(ext === "H" + (i+1)) {
                             project.course.holes[i].loadData(JNSEBinaryData.expandFile(bytes));
+                            editor.renderPlot(i);
                         }
                     }
                     if(ext === "DZV") {

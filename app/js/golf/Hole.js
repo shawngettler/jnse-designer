@@ -24,7 +24,7 @@ export default class Hole {
         this.wallStyle = 0;
 
         // terrain
-        this.map = new Array(240*80).fill(0);
+        this.terr = new Array(240*80).fill(0);
         this.elev = new Array(240*80).fill(128);
 
         // objects
@@ -78,7 +78,7 @@ export default class Hole {
         // mystery data data.slice(891,1011);
 
         // terrain
-        this.map = data.slice(1011, 20211);
+        this.terr = data.slice(1011, 20211);
         this.elev = data.slice(20211, 39411);
     }
 

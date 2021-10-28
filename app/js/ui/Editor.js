@@ -5,6 +5,8 @@
  * Graphical editor interface.
  */
 
+import Palette from "../golf/Palette.js";
+
 
 
 /**
@@ -25,11 +27,6 @@ export default class Editor {
      * @param course Course object
      */
     constructor(course) {
-        this.course = course;
-
-        this.state = Editor.LAYOUT_VIEW;
-
-
         let editorElement = document.createElement("div");
         editorElement.id = "editor";
         document.getElementById("app-container").appendChild(editorElement);
@@ -37,7 +34,16 @@ export default class Editor {
         this.canvas.id = "editor-canvas";
         editorElement.appendChild(this.canvas);
 
-        this.updateCanvasSize();
+
+        // editor
+        this.course = course;
+
+        this.state = Editor.LAYOUT_VIEW;
+
+        this.plotImgData = [];
+        for(let i = 0; i < 19; i++) {
+            this.renderPlot(i);
+        }
 
 
         // user input
@@ -125,6 +131,7 @@ export default class Editor {
         window.addEventListener("resize", (e) => {
             this.updateCanvasSize();
         });
+        this.updateCanvasSize();
     }
 
 
@@ -300,6 +307,7 @@ export default class Editor {
 
         this.state = Editor.LAYOUT_ADD;
         this.canvas.style.cursor = "none";
+        this.canvas.dispatchEvent(new CustomEvent("courseupdate"));
     }
 
     /**
@@ -335,7 +343,7 @@ export default class Editor {
         this.state = Editor.LAYOUT_VIEW;
         this.canvas.style.cursor = "";
         this.update();
-        this.canvas.dispatchEvent(new Event("courseupdate"));
+        this.canvas.dispatchEvent(new CustomEvent("courseupdate"));
     }
 
     /**
@@ -357,7 +365,7 @@ export default class Editor {
         if(this.course.holeData[this.holeEdit].v.length < 2) {
             this.course.holeData[this.holeEdit].v = [];
         } else {
-            let vc = this.course.holeData[this.holeEdit].v.map((p) => { return this.xfHoleToPlot(p, this.holeEdit); });
+            let vc = this.course.holeData[this.holeEdit].v.map((p) => this.xfHoleToPlot(p, this.holeEdit));
 
             let d = Math.hypot(vc[vc.length-1].x-vc[0].x, vc[vc.length-1].y-vc[0].y);
             let u = { x: (vc[vc.length-1].x-vc[0].x) / d, y: (vc[vc.length-1].y-vc[0].y) / d };
@@ -370,7 +378,7 @@ export default class Editor {
             this.course.holeData[this.holeEdit].x = Math.floor(vc[0].x + (d/2-30)*u.x + ((vmin+vmax)/2+10)*u.y);
             this.course.holeData[this.holeEdit].y = Math.floor(vc[0].y + (d/2-30)*u.y - ((vmin+vmax)/2+10)*u.x);
             this.course.holeData[this.holeEdit].r = Math.floor(-Math.atan2(u.y, u.x)/(2*Math.PI) * 600);
-            this.course.holeData[this.holeEdit].v = vc.map((p) => { return this.xfPlotToHole(p, this.holeEdit); });
+            this.course.holeData[this.holeEdit].v = vc.map((p) => this.xfPlotToHole(p, this.holeEdit));
             this.course.holeData[this.holeEdit].v = this.course.holeData[this.holeEdit].v.map((p) => { return { x: Math.floor(p.x), y: Math.floor(p.y) }; });
 
             let yds = this.course.getHoleLength(this.holeEdit);
@@ -383,7 +391,7 @@ export default class Editor {
         this.state = Editor.LAYOUT_VIEW;
         this.canvas.style.cursor = "";
         this.update();
-        this.canvas.dispatchEvent(new Event("courseupdate"));
+        this.canvas.dispatchEvent(new CustomEvent("courseupdate"));
     }
 
     /**
@@ -398,7 +406,7 @@ export default class Editor {
         this.vertexMove.y = Math.floor(q.y);
 
         this.update();
-        this.canvas.dispatchEvent(new Event("courseupdate"));
+        this.canvas.dispatchEvent(new CustomEvent("courseupdate"));
     }
 
     /**
@@ -408,7 +416,7 @@ export default class Editor {
      * @param hole hole number
      */
     drawRouting(ctx, hole) {
-        let v = this.course.holeData[hole].v.map((p) => { return this.xfHoleToScreen(p, hole); })
+        let v = this.course.holeData[hole].v.map((p) => this.xfHoleToScreen(p, hole))
 
         ctx.strokeStyle = "rgba(252, 252, 252, 1.0)";
         ctx.fillStyle = "rgba(252, 252, 252, 1.0)";
@@ -436,14 +444,15 @@ export default class Editor {
      * @param hole hole number
      */
     drawRoutingBounds(ctx, hole) {
-        const bbox = (w, h) => { return [{ x: 0, y: 0 }, { x: 0, y: h }, { x: w, y: h }, { x: w, y: 0 }, { x: 0, y: 0 }]; };
+        const box = (w, h) => { return [{ x: 0, y: 0 }, { x: 0, y: h }, { x: w, y: h }, { x: w, y: 0 }]; };
 
         ctx.lineWidth = 1.0;
         ctx.strokeStyle = "rgba(252, 252, 0, 1.0)";
         ctx.beginPath()
-        for(let p of bbox(240, 80).map((p) => { return this.xfHoleToScreen(p, hole); })) {
+        for(let p of box(240, 80).map((p) => this.xfHoleToScreen(p, hole))) {
             ctx.lineTo(p.x, p.y);
         }
+        ctx.closePath();
         ctx.stroke();
     }
 
@@ -464,6 +473,27 @@ export default class Editor {
             }
         }
         return null;
+    }
+
+
+
+    /**
+     * Create image data representing the land plot using the course palette.
+     *
+     * @param hole hole number or 18 for course plot
+     */
+    renderPlot(hole) {
+        let terr = hole == 18 ? this.course.plot.terr : this.course.holes[hole].terr;
+
+        this.plotImgData[hole] = new Uint8ClampedArray(terr.length*4);
+        for(let i = 0; i < terr.length; i++) {
+            let rgba = this.course.palette.getRGBA(Palette.getTerrainIndex(terr[i]));
+            for(let j = 0; j < 4; j++) {
+                this.plotImgData[hole][i*4+j] = rgba[j];
+            }
+        }
+
+        this.canvas.dispatchEvent(new CustomEvent("plotupdate", { detail: hole }));
     }
 
 

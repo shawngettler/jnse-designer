@@ -25,7 +25,7 @@ export default class Plot {
         this.windSpeed = 0;
 
         // terrain
-        this.map = new Array(240*120).fill(0);
+        this.terr = new Array(240*120).fill(0);
         this.elev = new Array(240*120).fill(128);
 
         // objects
@@ -63,7 +63,7 @@ export default class Plot {
         // mystery data data.slice(891,1011);
 
         // terrain
-        this.map = data.slice(1011, 29811);
+        this.terr = data.slice(1011, 29811);
         this.elev = data.slice(29811, 58611);
     }
 

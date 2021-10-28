@@ -81,26 +81,6 @@ export default class Course {
 
 
     /**
-     * Create an image representing the land plot using the course palette.
-     *
-     * @param map byte array of terrain data
-     *
-     * @return byte array of RGBA image data
-     */
-    renderPlot(map) {
-        let data = new Uint8ClampedArray(map.length*4);
-        for(let i = 0; i < map.length; i++) {
-            let rgba = this.palette.getRGBA(Palette.getTerrainIndex(map[i]));
-            for(let j = 0; j < 4; j++) {
-                data[i*4+j] = rgba[j];
-            }
-        }
-        return data;
-    }
-
-
-
-    /**
      * Load course metadata from file. Data is always raw binary.
      *
      * @param data byte array from file

@@ -40,8 +40,11 @@ export default class Editor {
 
         this.state = Editor.LAYOUT_VIEW;
 
-        this.plotImgData = [];
+        this.plotImages = [];
         for(let i = 0; i < 19; i++) {
+            this.plotImages[i] = document.createElement('canvas');
+            this.plotImages[i].width = 240;
+            this.plotImages[i].height = i == 18 ? 120 : 80;
             this.renderPlot(i);
         }
 
@@ -144,11 +147,18 @@ export default class Editor {
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         for(let i = 0; i < 18; i++) {
+            if(this.course.holeData[i].v.length) {
+                this.drawPlot(ctx, i);
+            }
+        }
+
+        for(let i = 0; i < 18; i++) {
             this.drawRouting(ctx, i);
             if(this.state === Editor.LAYOUT_EDIT && i == this.holeEdit) {
                 this.drawRoutingBounds(ctx, i);
             }
         }
+
 
     }
 
@@ -478,22 +488,48 @@ export default class Editor {
 
 
     /**
-     * Create image data representing the land plot using the course palette.
+     * Create image representing the land plot using the course palette.
      *
      * @param hole hole number or 18 for course plot
      */
     renderPlot(hole) {
         let terr = hole == 18 ? this.course.plot.terr : this.course.holes[hole].terr;
 
-        this.plotImgData[hole] = new Uint8ClampedArray(terr.length*4);
+        let imgData = new Uint8ClampedArray(terr.length*4);
         for(let i = 0; i < terr.length; i++) {
             let rgba = this.course.palette.getRGBA(Palette.getTerrainIndex(terr[i]));
             for(let j = 0; j < 4; j++) {
-                this.plotImgData[hole][i*4+j] = rgba[j];
+                imgData[i*4+j] = rgba[j];
             }
         }
+        this.plotImages[hole].getContext("2d").putImageData(new ImageData(imgData, 240), 0, 0);
 
         this.canvas.dispatchEvent(new CustomEvent("plotupdate", { detail: hole }));
+    }
+
+    /**
+     * Draw the rendered plot to the editor.
+     *
+     * @param ctx drawing context
+     * @param hole hole number
+     */
+    drawPlot(ctx, hole) {
+        const box = (w, h) => { return [{ x: 0, y: 0 }, { x: 0, y: h }, { x: w, y: h }, { x: w, y: 0 }]; };
+
+        let q;
+        if(hole == 18) {
+            q = box(240, 120).map((p) => this.xfPlotToScreen(p));
+        } else {
+            q = box(240, 80).map((p) => this.xfHoleToScreen(p, hole));
+        }
+        let dr = Math.atan2(q[3].y-q[0].y, q[3].x-q[0].x);
+        let ds = Math.sqrt((q[3].x-q[0].x)*(q[3].x-q[0].x)+(q[3].y-q[0].y)*(q[3].y-q[0].y)) / 240;
+
+        ctx.imageSmoothingEnabled = false;
+        ctx.transform(ds, 0, 0, ds, q[0].x, q[0].y);
+        ctx.rotate(dr);
+        ctx.drawImage(this.plotImages[hole], 0, 0);
+        ctx.resetTransform();
     }
 
 

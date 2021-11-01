@@ -102,9 +102,9 @@ import Toolbar from "./ui/Toolbar.js";
 
     function updatePlot(hole) {
         if(hole == 18) {
-            coursePlot.getContext("2d").putImageData(new ImageData(editor.plotImgData[hole], 240), 0, 0);
+            coursePlot.getContext("2d").drawImage(editor.plotImages[hole], 0, 0);
         } else {
-            holePlot[hole].getContext("2d").putImageData(new ImageData(editor.plotImgData[hole], 240), 0, 0);
+            holePlot[hole].getContext("2d").drawImage(editor.plotImages[hole], 0, 0);
         }
     }
 

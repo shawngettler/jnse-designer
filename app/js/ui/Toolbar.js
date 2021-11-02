@@ -217,39 +217,28 @@ export default class Toolbar {
 
 
     /**
-     * Add an image of a land plot with control buttons.
+     * Add a land plot image with opacity slider.
      *
      * @param group DOM element for the group of controls
-     * @param width image width
-     * @param height image height
-     * @param showCallback callback when show/hide is clicked
-     * @param zoomCallback callback when zoom is clicked
-     *
-     * @return image element with value to set
+     * @param canvas canvas element
+     * @param callback callback when value changes
      */
-    addPlot(group, width, height, showCallback, zoomCallback) {
+    addPlot(group, canvas, callback) {
         let plotElement = document.createElement("div");
-        plotElement.classList.add("control-item");
+        plotElement.classList.add("control-item-plot");
         group.appendChild(plotElement);
-        let plotCanvas = document.createElement("canvas");
-        plotCanvas.classList.add("control-item-plot-canvas");
-        plotCanvas.width = width;
-        plotCanvas.height = height;
-        plotElement.appendChild(plotCanvas);
-        let plotButtonGroup = document.createElement("div");
-        plotButtonGroup.classList.add("control-item-plot-button-group");
-        plotElement.appendChild(plotButtonGroup);
-        let showButton = document.createElement("div");
-        showButton.classList.add("control-item-plot-button-item");
-        showButton.appendChild(document.createTextNode("SHOW"));
-        showButton.addEventListener("click", showCallback);
-        plotButtonGroup.appendChild(showButton);
-        let zoomButton = document.createElement("div");
-        zoomButton.classList.add("control-item-plot-button-item");
-        zoomButton.appendChild(document.createTextNode("ZOOM TO"));
-        zoomButton.addEventListener("click", zoomCallback);
-        plotButtonGroup.appendChild(zoomButton);
-        return plotCanvas;
+
+        canvas.classList.add("control-item-plot-canvas");
+        plotElement.appendChild(canvas);
+
+        let plotSlider = document.createElement("input");
+        plotSlider.type = "range";
+        plotSlider.classList.add("control-item-plot-slider");
+        plotSlider.min = 0;
+        plotSlider.max = 100;
+        plotSlider.value = 100;
+        plotSlider.addEventListener("change", callback);
+        plotElement.appendChild(plotSlider);
     }
 
 }

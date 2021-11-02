@@ -23,7 +23,6 @@ import Toolbar from "./ui/Toolbar.js";
     // editor interface
     let editor = new Editor(project.course);
     editor.canvas.addEventListener("courseupdate", (e) => { updateToolbar(); });
-    editor.canvas.addEventListener("plotupdate", (e) => { updatePlot(e.detail); });
 
     // side bar
     let toolbar = new Toolbar("JNSE Course Designer");
@@ -42,31 +41,41 @@ import Toolbar from "./ui/Toolbar.js";
     let courseBoundsInput = toolbar.addDropdown(courseGroup, "Out of Bounds", ["Out of Bounds", "Heavy Rough"], (e) => { project.course.outOfBounds = parseInt(e.target.value); });
     let courseWindSpeedInput = toolbar.addDropdown(courseGroup, "Wind Speed", ["None", "Gentle", "Medium", "Strong"], (e) => { project.course.plot.windSpeed = parseInt(e.target.value); });
     let courseWindDirInput = toolbar.addDropdown(courseGroup, "Wind Direction", ["n/a", "North", "Northeast", "East", "Southeast", "South", "Southwest", "West", "Northwest"], (e) => { project.course.plot.windDir = parseInt(e.target.value); });
-    let coursePlot = toolbar.addPlot(courseGroup, 240, 120, null, null);
-    updatePlot(18);
+    let coursePlot = toolbar.addPlot(courseGroup, editor.plotImages[18], (e) => { editor.plotAlpha[18] = e.target.value/100; editor.update(); });
+    let coursePlotButtons = toolbar.addButtonGroup(courseGroup);
+    let courseShowPlot = toolbar.addButton(coursePlotButtons, "Show Plot", (e) => { editor.showPlot(18); });
+    let courseEditPlot = toolbar.addButton(coursePlotButtons, "Edit Plot", null);
+    let courseMovePlot = toolbar.addButton(coursePlotButtons, "Move Plot", null);
 
     let holeGroup = [];
     let holeParInput = [];
     let holeLengthInput = [];
-    let holeButtons = [];
+    let holeRoutingButtons = [];
     let holeCreateRouting = [];
     let holeEditRouting = [];
     let holeDeleteRouting = [];
     let holeQuoteInput = [];
     let holeWallInput = [];
     let holePlot = [];
+    let holePlotButtons = [];
+    let holeShowPlot = [];
+    let holeEditPlot = [];
+    let holeMovePlot = [];
     for(let i = 0; i < 18; i++) {
         holeGroup[i] = toolbar.addControlGroup("HOLE "+(i+1));
         holeParInput[i] = toolbar.addDropdown(holeGroup[i], "Par", ["3", "4", "5"], (e) => { project.course.holeData[i].par = e.target.value + 3; });
         holeLengthInput[i] = toolbar.addTextField(holeGroup[i], "Length");
-        holeButtons[i] = toolbar.addButtonGroup(holeGroup[i]);
-        holeCreateRouting[i] = toolbar.addButton(holeButtons[i], "Create Routing", (e) => { editor.createRouting(i); });
-        holeEditRouting[i] = toolbar.addButton(holeButtons[i], "Edit Routing", (e) => { editor.editRouting(i); });
-        holeDeleteRouting[i] = toolbar.addButton(holeButtons[i], "Delete Routing", (e) => { editor.deleteRouting(i); });
+        holeRoutingButtons[i] = toolbar.addButtonGroup(holeGroup[i]);
+        holeCreateRouting[i] = toolbar.addButton(holeRoutingButtons[i], "Create Routing", (e) => { editor.createRouting(i); });
+        holeEditRouting[i] = toolbar.addButton(holeRoutingButtons[i], "Edit Routing", (e) => { editor.editRouting(i); });
+        holeDeleteRouting[i] = toolbar.addButton(holeRoutingButtons[i], "Delete Routing", (e) => { editor.deleteRouting(i); });
         holeQuoteInput[i] = toolbar.addTextArea(holeGroup[i], "Hole Quote", 120, (e) => { project.course.holes[i].quote = e.target.value; });
         holeWallInput[i] = toolbar.addDropdown(holeGroup[i], "Wall Style", ["No Walls", "Railroad Ties", "Stone Walls"], (e) => { project.course.outofbounds = parseInt(e.target.value); });
-        holePlot[i] = toolbar.addPlot(holeGroup[i], 240, 80, null, null);
-        updatePlot(i);
+        holePlot[i] = toolbar.addPlot(holeGroup[i], editor.plotImages[i], (e) => { editor.plotAlpha[i] = e.target.value/100; editor.update(); });
+        holePlotButtons[i] = toolbar.addButtonGroup(holeGroup[i]);
+        holeShowPlot[i] = toolbar.addButton(holePlotButtons[i], "Show Plot", (e) => { editor.showPlot(i); });
+        holeEditPlot[i] = toolbar.addButton(holePlotButtons[i], "Edit Plot", null);
+        holeMovePlot[i] = toolbar.addButton(holePlotButtons[i], "Move Plot", null);
     }
 
     updateToolbar();
@@ -90,23 +99,21 @@ import Toolbar from "./ui/Toolbar.js";
                 holeCreateRouting[i].disabled = true;
                 holeEditRouting[i].disabled = false;
                 holeDeleteRouting[i].disabled = false;
+                holeShowPlot[i].disabled = false;
+                holeEditPlot[i].disabled = false;
+                holeMovePlot[i].disabled = false;
             } else {
                 holeCreateRouting[i].disabled = false;
                 holeEditRouting[i].disabled = true;
                 holeDeleteRouting[i].disabled = true;
+                holeShowPlot[i].disabled = true;
+                holeEditPlot[i].disabled = true;
+                holeMovePlot[i].disabled = true;
             }
             holeQuoteInput[i].value = project.course.holes[i].quote;
             holeWallInput[i].value = project.course.holes[i].wallStyle;
         }
     };
-
-    function updatePlot(hole) {
-        if(hole == 18) {
-            coursePlot.getContext("2d").drawImage(editor.plotImages[hole], 0, 0);
-        } else {
-            holePlot[hole].getContext("2d").drawImage(editor.plotImages[hole], 0, 0);
-        }
-    }
 
 
 
@@ -128,15 +135,18 @@ import Toolbar from "./ui/Toolbar.js";
                     let bytes = new Uint8Array(e.target.result);
                     if(ext === "PRC") {
                         project.course.loadData(bytes);
+                        editor.update();
                     }
                     if(ext === "LDM") {
                         project.course.plot.loadData(JNSEBinaryData.expandFile(bytes));
                         editor.renderPlot(18);
+                        editor.update();
                     }
                     for(let i = 0; i < 18; i++) {
                         if(ext === "H" + (i+1)) {
                             project.course.holes[i].loadData(JNSEBinaryData.expandFile(bytes));
                             editor.renderPlot(i);
+                            editor.update();
                         }
                     }
                     if(ext === "DZV") {

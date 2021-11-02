@@ -18,6 +18,8 @@ export default class Editor {
     static LAYOUT_VIEW = "view hole layout";
     static LAYOUT_ADD = "add hole layout";
     static LAYOUT_EDIT = "edit hole layout";
+    static PLOT_EDIT = "edit hole plot";
+    static PLOT_MOVE = "move hole plot";
 
 
 
@@ -40,8 +42,13 @@ export default class Editor {
 
         this.state = Editor.LAYOUT_VIEW;
 
+        this.plotAlpha = [];
+        this.plotVisible = [];
         this.plotImages = [];
         for(let i = 0; i < 19; i++) {
+            this.plotAlpha[i] = 1;
+            this.plotVisible[i] = false;
+
             this.plotImages[i] = document.createElement('canvas');
             this.plotImages[i].width = 240;
             this.plotImages[i].height = i == 18 ? 120 : 80;
@@ -146,19 +153,24 @@ export default class Editor {
         let ctx = this.canvas.getContext("2d");
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        for(let i = 0; i < 18; i++) {
-            if(this.course.holeData[i].v.length) {
+        for(let i = 0; i < 19; i++) {
+            if(this.plotVisible[i]) {
                 this.drawPlot(ctx, i);
             }
         }
 
         for(let i = 0; i < 18; i++) {
-            this.drawRouting(ctx, i);
             if(this.state === Editor.LAYOUT_EDIT && i == this.holeEdit) {
+                ctx.strokeStyle = "rgba(252, 252, 0, 1.0)";
+                ctx.fillStyle = "rgba(252, 252, 0, 1.0)";
+                this.drawRouting(ctx, i);
                 this.drawRoutingBounds(ctx, i);
+            } else {
+                ctx.strokeStyle = "rgba(252, 252, 252, 1.0)";
+                ctx.fillStyle = "rgba(252, 252, 252, 1.0)";
+                this.drawRouting(ctx, i);
             }
         }
-
 
     }
 
@@ -428,13 +440,6 @@ export default class Editor {
     drawRouting(ctx, hole) {
         let v = this.course.holeData[hole].v.map((p) => this.xfHoleToScreen(p, hole))
 
-        ctx.strokeStyle = "rgba(252, 252, 252, 1.0)";
-        ctx.fillStyle = "rgba(252, 252, 252, 1.0)";
-        if(hole == this.holeEdit) {
-            ctx.strokeStyle = "rgba(252, 252, 0, 1.0)";
-            ctx.fillStyle = "rgba(252, 252, 0, 1.0)";
-        }
-
         ctx.lineWidth = 1.5;
         ctx.beginPath()
         for(let p of v) {
@@ -503,9 +508,18 @@ export default class Editor {
             }
         }
         this.plotImages[hole].getContext("2d").putImageData(new ImageData(imgData, 240), 0, 0);
-
-        this.canvas.dispatchEvent(new CustomEvent("plotupdate", { detail: hole }));
     }
+
+    /**
+     * Show/hide the land plot.
+     *
+     * @param hole hole number or 18 for course plot
+     */
+    showPlot(hole) {
+        this.plotVisible[hole] = !this.plotVisible[hole];
+        this.update();
+    }
+
 
     /**
      * Draw the rendered plot to the editor.
@@ -526,10 +540,13 @@ export default class Editor {
         let ds = Math.sqrt((q[3].x-q[0].x)*(q[3].x-q[0].x)+(q[3].y-q[0].y)*(q[3].y-q[0].y)) / 240;
 
         ctx.imageSmoothingEnabled = false;
+        ctx.globalAlpha = this.plotAlpha[hole];
         ctx.transform(ds, 0, 0, ds, q[0].x, q[0].y);
         ctx.rotate(dr);
         ctx.drawImage(this.plotImages[hole], 0, 0);
+
         ctx.resetTransform();
+        ctx.globalAlpha = 1;
     }
 
 

@@ -424,8 +424,8 @@ export default class Editor {
      */
     modifyRouting(cx, cy) {
         let q = this.xfScreenToHole({ x: cx, y: cy }, this.holeEdit);
-        this.vertexMove.x = Math.floor(q.x);
-        this.vertexMove.y = Math.floor(q.y);
+        this.vertexMove.x = Math.max(0, Math.min(Math.floor(q.x), 239));
+        this.vertexMove.y = Math.max(0, Math.min(Math.floor(q.y), 79));
 
         this.update();
         this.canvas.dispatchEvent(new CustomEvent("courseupdate"));
@@ -438,7 +438,7 @@ export default class Editor {
      * @param hole hole number
      */
     drawRouting(ctx, hole) {
-        let v = this.course.holeData[hole].v.map((p) => this.xfHoleToScreen(p, hole))
+        let v = this.course.holeData[hole].v.map((p) => this.xfHoleToScreen({ x: p.x+0.5, y: p.y+0.5 }, hole))
 
         ctx.lineWidth = 1.5;
         ctx.beginPath()
@@ -482,7 +482,7 @@ export default class Editor {
      */
     queryRouting(cx, cy) {
         for(let p of this.course.holeData[this.holeEdit].v) {
-            let q = this.xfHoleToScreen(p, this.holeEdit);
+            let q = this.xfHoleToScreen({ x: p.x+0.5, y: p.y+0.5 }, this.holeEdit);
             if(q.x-cx <= 3 && cx-q.x <= 3 && q.y-cy <= 3 && cy-q.y <= 3) {
                 return p;
             }

@@ -45,7 +45,7 @@ import Toolbar from "./ui/Toolbar.js";
     let coursePlotButtons = toolbar.addButtonGroup(courseGroup);
     let courseShowPlot = toolbar.addButton(coursePlotButtons, "Show Plot", (e) => { editor.showPlot(18); });
     let courseEditPlot = toolbar.addButton(coursePlotButtons, "Edit Plot", null);
-    let courseMovePlot = toolbar.addButton(coursePlotButtons, "Move Plot", null);
+    let courseMovePlot = toolbar.addButton(coursePlotButtons, "Move Plot", (e) => { editor.movePlot(18); });
 
     let holeGroup = [];
     let holeParInput = [];
@@ -75,7 +75,7 @@ import Toolbar from "./ui/Toolbar.js";
         holePlotButtons[i] = toolbar.addButtonGroup(holeGroup[i]);
         holeShowPlot[i] = toolbar.addButton(holePlotButtons[i], "Show Plot", (e) => { editor.showPlot(i); });
         holeEditPlot[i] = toolbar.addButton(holePlotButtons[i], "Edit Plot", null);
-        holeMovePlot[i] = toolbar.addButton(holePlotButtons[i], "Move Plot", null);
+        holeMovePlot[i] = toolbar.addButton(holePlotButtons[i], "Move Plot", (e) => { editor.movePlot(i); });
     }
 
     updateToolbar();

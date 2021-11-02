@@ -62,8 +62,8 @@ export default class Editor {
         });
 
         this.holeEdit = -1;
-        this.vertexOver = null;
         this.vertexMove = null;
+        this.vertexRot = null;
 
         this.canvas.addEventListener("mousemove", (e) => {
             if(this.state === Editor.LAYOUT_ADD) {
@@ -72,11 +72,23 @@ export default class Editor {
                 }
             }
             if(this.state === Editor.LAYOUT_EDIT) {
-                this.vertexOver = this.queryRouting(e.offsetX, e.offsetY);
                 if(this.vertexMove) {
                     this.modifyRouting(e.offsetX, e.offsetY);
-                } else if(this.vertexOver) {
+                } else if(this.queryRouting(e.offsetX, e.offsetY)) {
                     this.canvas.style.cursor = "move";
+                } else {
+                    this.canvas.style.cursor = "";
+                }
+            }
+            if(this.state === Editor.PLOT_MOVE) {
+                if(this.vertexMove) {
+                    this.modifyPlot(e.offsetX, e.offsetY);
+                } else if(this.vertexRot) {
+                    this.rotatePlot(e.offsetX, e.offsetY);
+                } else if(this.queryPlotMove(e.offsetX, e.offsetY)) {
+                    this.canvas.style.cursor = "move";
+                } else if(this.queryPlotRotate(e.offsetX, e.offsetY)) {
+                    this.canvas.style.cursor = "grab";
                 } else {
                     this.canvas.style.cursor = "";
                 }
@@ -84,9 +96,18 @@ export default class Editor {
         });
         this.canvas.addEventListener("mousedown", (e) => {
             if(this.state === Editor.LAYOUT_EDIT) {
-                if(this.vertexOver && e.button == 0) {
-                    this.vertexMove = this.vertexOver;
+                if(this.queryRouting(e.offsetX, e.offsetY) && e.button == 0) {
+                    this.vertexMove = this.queryRouting(e.offsetX, e.offsetY);
                     this.canvas.style.cursor = "none";
+                }
+            }
+            if(this.state === Editor.PLOT_MOVE) {
+                if(this.queryPlotMove(e.offsetX, e.offsetY) && e.button == 0) {
+                    this.vertexMove = this.queryPlotMove(e.offsetX, e.offsetY);
+                    this.canvas.style.cursor = "none";
+                } else if(this.queryPlotRotate(e.offsetX, e.offsetY) && e.button == 0) {
+                    this.vertexRot = this.queryPlotRotate(e.offsetX, e.offsetY);
+                    this.canvas.style.cursor = "grabbing";
                 }
             }
         });
@@ -102,6 +123,19 @@ export default class Editor {
                 if(this.vertexMove && e.button == 0) {
                     this.vertexMove = null;
                     this.canvas.style.cursor = "move";
+                } else if(e.button == 2) {
+                    this.holeEdit = -1;
+                    this.state = Editor.LAYOUT_VIEW;
+                    this.update();
+                }
+            }
+            if(this.state === Editor.PLOT_MOVE) {
+                if(this.vertexMove && e.button == 0) {
+                    this.vertexMove = null;
+                    this.canvas.style.cursor = "move";
+                } else if(this.vertexRot && e.button == 0) {
+                    this.vertexRot = null;
+                    this.canvas.style.cursor = "grab";
                 } else if(e.button == 2) {
                     this.holeEdit = -1;
                     this.state = Editor.LAYOUT_VIEW;
@@ -156,6 +190,11 @@ export default class Editor {
         for(let i = 0; i < 19; i++) {
             if(this.plotVisible[i]) {
                 this.drawPlot(ctx, i);
+            }
+            if(this.state === Editor.PLOT_MOVE && i == this.holeEdit) {
+                ctx.strokeStyle = "rgba(252, 252, 0, 1.0)";
+                ctx.fillStyle = "rgba(252, 252, 0, 1.0)";
+                this.drawPlotBounds(ctx, i);
             }
         }
 
@@ -424,8 +463,8 @@ export default class Editor {
      */
     modifyRouting(cx, cy) {
         let q = this.xfScreenToHole({ x: cx, y: cy }, this.holeEdit);
-        this.vertexMove.x = Math.max(0, Math.min(Math.floor(q.x), 239));
-        this.vertexMove.y = Math.max(0, Math.min(Math.floor(q.y), 79));
+        this.vertexMove.x = Math.floor(q.x);
+        this.vertexMove.y = Math.floor(q.y);
 
         this.update();
         this.canvas.dispatchEvent(new CustomEvent("courseupdate"));
@@ -459,12 +498,11 @@ export default class Editor {
      * @param hole hole number
      */
     drawRoutingBounds(ctx, hole) {
-        const box = (w, h) => { return [{ x: 0, y: 0 }, { x: 0, y: h }, { x: w, y: h }, { x: w, y: 0 }]; };
+        let box = this.getPlotBounds(hole);
 
         ctx.lineWidth = 1.0;
-        ctx.strokeStyle = "rgba(252, 252, 0, 1.0)";
         ctx.beginPath()
-        for(let p of box(240, 80).map((p) => this.xfHoleToScreen(p, hole))) {
+        for(let p of box) {
             ctx.lineTo(p.x, p.y);
         }
         ctx.closePath();
@@ -478,7 +516,7 @@ export default class Editor {
      * @param cx x position in screen coordinates
      * @param cy y position in screen coordinates
      *
-     * @return object containing the vertex and hole number or null if none
+     * @return point object for the vertex or null if none
      */
     queryRouting(cx, cy) {
         for(let p of this.course.holeData[this.holeEdit].v) {
@@ -520,33 +558,153 @@ export default class Editor {
         this.update();
     }
 
+    /**
+     * Move the plot (and routing).
+     *
+     * @param hole hole number or 18 for course plot
+     */
+    movePlot(hole) {
+        this.holeEdit = hole;
+        this.plotVisible[hole] = true;
+
+        this.state = Editor.PLOT_MOVE;
+        this.update();
+    }
+
+    /**
+     * Modify plot (and routing) location.
+     *
+     * @param cx x position in screen coordinates
+     * @param cy y position in screen coordinates
+     */
+    modifyPlot(cx, cy) {
+        if(this.holeEdit == 18) {
+            let q = this.xfScreenToRef({ x: cx, y: cy });
+            this.course.x = q.x;
+            this.course.y = q.y;
+        } else {
+            let q = this.xfScreenToPlot({ x: cx, y: cy });
+            this.course.holeData[this.holeEdit].x = Math.floor(q.x);
+            this.course.holeData[this.holeEdit].y = Math.floor(q.y);
+        }
+
+        this.update();
+    }
+
+    /**
+     * Rotate plot (and routing). New angle based on new location of the
+     * opposite corner of the bounds.
+     *
+     * @param cx x position in screen coordinates
+     * @param cy y position in screen coordinates
+     */
+    rotatePlot(cx, cy) {
+        if(this.holeEdit == 18) {
+            let q = this.xfScreenToRef({ x: cx, y: cy });
+            let cr = -Math.atan2(q.y-this.course.y, q.x-this.course.x);
+            this.course.r = (cr + Math.atan2(120, 240))/(2*Math.PI) * 600;
+        } else {
+            let q = this.xfScreenToPlot({ x: cx, y: cy });
+            let cr = -Math.atan2(q.y-this.course.holeData[this.holeEdit].y, q.x-this.course.holeData[this.holeEdit].x);
+            this.course.holeData[this.holeEdit].r = Math.floor((cr + Math.atan2(80, 240))/(2*Math.PI) * 600);
+        }
+
+        this.update();
+    }
 
     /**
      * Draw the rendered plot to the editor.
      *
      * @param ctx drawing context
-     * @param hole hole number
+     * @param hole hole number or 18 for course plot
      */
     drawPlot(ctx, hole) {
-        const box = (w, h) => { return [{ x: 0, y: 0 }, { x: 0, y: h }, { x: w, y: h }, { x: w, y: 0 }]; };
-
-        let q;
-        if(hole == 18) {
-            q = box(240, 120).map((p) => this.xfPlotToScreen(p));
-        } else {
-            q = box(240, 80).map((p) => this.xfHoleToScreen(p, hole));
-        }
-        let dr = Math.atan2(q[3].y-q[0].y, q[3].x-q[0].x);
-        let ds = Math.sqrt((q[3].x-q[0].x)*(q[3].x-q[0].x)+(q[3].y-q[0].y)*(q[3].y-q[0].y)) / 240;
+        let box = this.getPlotBounds(hole);
+        let dr = Math.atan2(box[3].y-box[0].y, box[3].x-box[0].x);
+        let ds = Math.sqrt((box[3].x-box[0].x)*(box[3].x-box[0].x)+(box[3].y-box[0].y)*(box[3].y-box[0].y)) / 240;
 
         ctx.imageSmoothingEnabled = false;
         ctx.globalAlpha = this.plotAlpha[hole];
-        ctx.transform(ds, 0, 0, ds, q[0].x, q[0].y);
+        ctx.transform(ds, 0, 0, ds, box[0].x, box[0].y);
         ctx.rotate(dr);
         ctx.drawImage(this.plotImages[hole], 0, 0);
 
         ctx.resetTransform();
         ctx.globalAlpha = 1;
+    }
+
+    /**
+     * Draw the plot bounds with controls.
+     *
+     * @param ctx drawing context
+     * @param hole hole number or 18 for course plot
+     */
+    drawPlotBounds(ctx, hole) {
+        let box = this.getPlotBounds(hole);
+
+        ctx.lineWidth = 1.0;
+        ctx.beginPath()
+        for(let p of box) {
+            ctx.lineTo(p.x, p.y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+
+        ctx.fillRect(box[0].x-3, box[0].y-3, 6, 6);
+
+        ctx.beginPath();
+        ctx.arc(box[2].x, box[2].y, 4, 0, 2*Math.PI);
+        ctx.stroke();
+    }
+
+    /**
+     * Check for the plot location control at the canvas position. Checks a 6x6
+     * pixel box around the control.
+     *
+     * @param cx x position in screen coordinates
+     * @param cy y position in screen coordinates
+     *
+     * @return point object for the control point
+     */
+    queryPlotMove(cx, cy) {
+        let box = this.getPlotBounds(this.holeEdit);
+        if(box[0].x-cx <= 3 && cx-box[0].x <= 3 && box[0].y-cy <= 3 && cy-box[0].y <= 3) {
+            return box[0];
+        }
+        return null;
+    }
+
+    /**
+     * Check for the plot rotation control at the canvas position. Checks a 6x6
+     * pixel box around the control.
+     *
+     * @param cx x position in screen coordinates
+     * @param cy y position in screen coordinates
+     *
+     * @return point object for the control point
+     */
+    queryPlotRotate(cx, cy) {
+        let box = this.getPlotBounds(this.holeEdit);
+        if(box[2].x-cx <= 3 && cx-box[2].x <= 3 && box[2].y-cy <= 3 && cy-box[2].y <= 3) {
+            return box[2];
+        }
+        return null;
+    }
+
+    /**
+     * Get plot bounding box in screen coordinates.
+     *
+     * @param hole hole number or 18 for course plot
+     *
+     * @return array of point objects in screen coordinates
+     */
+    getPlotBounds(hole) {
+        const box = (w, h) => { return [{ x: 0, y: 0 }, { x: 0, y: h }, { x: w, y: h }, { x: w, y: 0 }]; };
+
+        if(hole == 18) {
+            return box(240, 120).map((p) => this.xfPlotToScreen(p));
+        }
+        return box(240, 80).map((p) => this.xfHoleToScreen(p, hole));
     }
 
 

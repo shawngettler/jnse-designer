@@ -16,8 +16,8 @@ export default class Editor {
 
     // editor states
     static DEFAULT_VIEW = "view course";
-    static LAYOUT_ADD = "add hole layout";
-    static LAYOUT_EDIT = "edit hole layout";
+    static ROUTING_ADD = "add hole layout";
+    static ROUTING_EDIT = "edit hole layout";
     static PLOT_EDIT = "edit hole plot";
     static PLOT_MOVE = "move hole plot";
 
@@ -57,9 +57,6 @@ export default class Editor {
 
 
         // terrain palette
-        this.paintTerr = 0;
-        this.paintPixel = null;
-
         this.paintTools = document.createElement("div");
         this.paintTools.id = "editor-tools";
         editorElement.appendChild(this.paintTools);
@@ -71,7 +68,7 @@ export default class Editor {
             this.paintTools.appendChild(paintItem);
             this.paintSwatches[i] = document.createElement("div");
             this.paintSwatches[i].classList.add("editor-tools-swatch");
-            this.paintSwatches[i].addEventListener("click", (e) => { this.setPaint(i); });
+            this.paintSwatches[i].addEventListener("click", (e) => { this.setPaintTerrain(i); });
             paintItem.appendChild(this.paintSwatches[i]);
             let paintTitle = document.createElement("div");
             paintTitle.classList.add("editor-tools-swatch-title");
@@ -87,29 +84,33 @@ export default class Editor {
         });
 
         this.holeEdit = -1;
-        this.vertexMove = null;
-        this.vertexRot = null;
+
+        this.controlMove = null;
+        this.controlRot = null;
+
+        this.paintTerr = 0;
+        this.paintPixel = null;
 
         this.canvas.addEventListener("mousemove", (e) => {
-            if(this.state === Editor.LAYOUT_ADD) {
-                if(this.vertexMove) {
-                    this.modifyRouting(e.offsetX, e.offsetY);
+            if(this.state === Editor.ROUTING_ADD) {
+                if(this.controlMove) {
+                    this.moveRoutingVertex(e.offsetX, e.offsetY);
                 }
             }
-            if(this.state === Editor.LAYOUT_EDIT) {
-                if(this.vertexMove) {
-                    this.modifyRouting(e.offsetX, e.offsetY);
-                } else if(this.queryRouting(e.offsetX, e.offsetY)) {
+            if(this.state === Editor.ROUTING_EDIT) {
+                if(this.controlMove) {
+                    this.moveRoutingVertex(e.offsetX, e.offsetY);
+                } else if(this.queryRoutingVertex(e.offsetX, e.offsetY)) {
                     this.canvas.style.cursor = "move";
                 } else {
                     this.canvas.style.cursor = "";
                 }
             }
             if(this.state === Editor.PLOT_MOVE) {
-                if(this.vertexMove) {
-                    this.modifyPlot(e.offsetX, e.offsetY);
-                } else if(this.vertexRot) {
-                    this.rotatePlot(e.offsetX, e.offsetY);
+                if(this.controlMove) {
+                    this.movePlotBounds(e.offsetX, e.offsetY);
+                } else if(this.controlRot) {
+                    this.rotatePlotBounds(e.offsetX, e.offsetY);
                 } else if(this.queryPlotMove(e.offsetX, e.offsetY)) {
                     this.canvas.style.cursor = "move";
                 } else if(this.queryPlotRotate(e.offsetX, e.offsetY)) {
@@ -131,18 +132,18 @@ export default class Editor {
             }
         });
         this.canvas.addEventListener("mousedown", (e) => {
-            if(this.state === Editor.LAYOUT_EDIT) {
-                if(this.queryRouting(e.offsetX, e.offsetY) && e.button == 0) {
-                    this.vertexMove = this.queryRouting(e.offsetX, e.offsetY);
+            if(this.state === Editor.ROUTING_EDIT) {
+                if(this.queryRoutingVertex(e.offsetX, e.offsetY) && e.button == 0) {
+                    this.controlMove = this.queryRoutingVertex(e.offsetX, e.offsetY);
                     this.canvas.style.cursor = "none";
                 }
             }
             if(this.state === Editor.PLOT_MOVE) {
                 if(this.queryPlotMove(e.offsetX, e.offsetY) && e.button == 0) {
-                    this.vertexMove = this.queryPlotMove(e.offsetX, e.offsetY);
+                    this.controlMove = this.queryPlotMove(e.offsetX, e.offsetY);
                     this.canvas.style.cursor = "none";
                 } else if(this.queryPlotRotate(e.offsetX, e.offsetY) && e.button == 0) {
-                    this.vertexRot = this.queryPlotRotate(e.offsetX, e.offsetY);
+                    this.controlRot = this.queryPlotRotate(e.offsetX, e.offsetY);
                     this.canvas.style.cursor = "grabbing";
                 }
             }
@@ -154,16 +155,16 @@ export default class Editor {
             }
         });
         this.canvas.addEventListener("mouseup", (e) => {
-            if(this.state === Editor.LAYOUT_ADD) {
+            if(this.state === Editor.ROUTING_ADD) {
                 if(e.button == 0) {
-                    this.addRouting();
+                    this.addRoutingVertex();
                 } else if(e.button == 2) {
                     this.endRouting();
                 }
             }
-            if(this.state === Editor.LAYOUT_EDIT) {
-                if(this.vertexMove && e.button == 0) {
-                    this.vertexMove = null;
+            if(this.state === Editor.ROUTING_EDIT) {
+                if(this.controlMove && e.button == 0) {
+                    this.controlMove = null;
                     this.canvas.style.cursor = "move";
                 } else if(e.button == 2) {
                     this.holeEdit = -1;
@@ -172,11 +173,11 @@ export default class Editor {
                 }
             }
             if(this.state === Editor.PLOT_MOVE) {
-                if(this.vertexMove && e.button == 0) {
-                    this.vertexMove = null;
+                if(this.controlMove && e.button == 0) {
+                    this.controlMove = null;
                     this.canvas.style.cursor = "move";
-                } else if(this.vertexRot && e.button == 0) {
-                    this.vertexRot = null;
+                } else if(this.controlRot && e.button == 0) {
+                    this.controlRot = null;
                     this.canvas.style.cursor = "grab";
                 } else if(e.button == 2) {
                     this.holeEdit = -1;
@@ -251,7 +252,7 @@ export default class Editor {
         }
 
         for(let i = 0; i < 18; i++) {
-            if(this.state === Editor.LAYOUT_EDIT && i == this.holeEdit) {
+            if(this.state === Editor.ROUTING_EDIT && i == this.holeEdit) {
                 ctx.strokeStyle = "rgba(252, 252, 0, 1.0)";
                 ctx.fillStyle = "rgba(252, 252, 0, 1.0)";
                 this.drawRouting(ctx, i);
@@ -284,7 +285,7 @@ export default class Editor {
      *
      * @param terr terrain code
      */
-    setPaint(terr) {
+    setPaintTerrain(terr) {
         this.paintTerr = terr;
         this.updatePaintTools();
     }
@@ -454,14 +455,14 @@ export default class Editor {
      * @param hole hole number
      */
     createRouting(hole) {
-        if(this.state == Editor.LAYOUT_ADD) {
+        if(this.state == Editor.ROUTING_ADD) {
             this.endRouting();
         }
 
         this.holeEdit = hole;
-        this.addRouting();
+        this.addRoutingVertex();
 
-        this.state = Editor.LAYOUT_ADD;
+        this.state = Editor.ROUTING_ADD;
         this.canvas.style.cursor = "none";
         this.canvas.dispatchEvent(new CustomEvent("courseupdate"));
     }
@@ -472,13 +473,13 @@ export default class Editor {
      * @param hole hole number
      */
     editRouting(hole) {
-        if(this.state == Editor.LAYOUT_ADD) {
+        if(this.state == Editor.ROUTING_ADD) {
             this.endRouting();
         }
 
         this.holeEdit = hole;
 
-        this.state = Editor.LAYOUT_EDIT;
+        this.state = Editor.ROUTING_EDIT;
         this.update();
     }
 
@@ -488,7 +489,7 @@ export default class Editor {
      * @param hole hole number
      */
     deleteRouting(hole) {
-        if(this.state == Editor.LAYOUT_ADD) {
+        if(this.state == Editor.ROUTING_ADD) {
             this.endRouting();
         }
 
@@ -505,10 +506,25 @@ export default class Editor {
     /**
      * Add a vertex to the hole routing.
      */
-    addRouting() {
+    addRoutingVertex() {
         let p = { x: 0, y: 0 };
         this.course.holeData[this.holeEdit].v.push(p);
-        this.vertexMove = p;
+        this.controlMove = p;
+    }
+
+    /**
+     * Move a hole routing vertex.
+     *
+     * @param cx x position in screen coordinates
+     * @param cy y position in screen coordinates
+     */
+    moveRoutingVertex(cx, cy) {
+        let q = this.xfScreenToHole({ x: cx, y: cy }, this.holeEdit);
+        this.controlMove.x = Math.floor(q.x);
+        this.controlMove.y = Math.floor(q.y);
+
+        this.update();
+        this.canvas.dispatchEvent(new CustomEvent("courseupdate"));
     }
 
     /**
@@ -541,26 +557,11 @@ export default class Editor {
             this.course.holeData[this.holeEdit].par = yds < 450 ? yds < 240 ? 3 : 4 : 5;
         }
 
-        this.vertexMove = null;
+        this.controlMove = null;
         this.holeEdit = -1;
 
         this.state = Editor.DEFAULT_VIEW;
         this.canvas.style.cursor = "";
-        this.update();
-        this.canvas.dispatchEvent(new CustomEvent("courseupdate"));
-    }
-
-    /**
-     * Move a hole routing vertex.
-     *
-     * @param cx x position in screen coordinates
-     * @param cy y position in screen coordinates
-     */
-    modifyRouting(cx, cy) {
-        let q = this.xfScreenToHole({ x: cx, y: cy }, this.holeEdit);
-        this.vertexMove.x = Math.floor(q.x);
-        this.vertexMove.y = Math.floor(q.y);
-
         this.update();
         this.canvas.dispatchEvent(new CustomEvent("courseupdate"));
     }
@@ -613,7 +614,7 @@ export default class Editor {
      *
      * @return point object for the vertex or null if none
      */
-    queryRouting(cx, cy) {
+    queryRoutingVertex(cx, cy) {
         for(let p of this.course.holeData[this.holeEdit].v) {
             let q = this.xfHoleToScreen({ x: p.x+0.5, y: p.y+0.5 }, this.holeEdit);
             if(q.x-cx <= 3 && cx-q.x <= 3 && q.y-cy <= 3 && cy-q.y <= 3) {
@@ -702,7 +703,7 @@ export default class Editor {
      * @param cx x position in screen coordinates
      * @param cy y position in screen coordinates
      */
-    modifyPlot(cx, cy) {
+    movePlotBounds(cx, cy) {
         if(this.holeEdit == 18) {
             let q = this.xfScreenToRef({ x: cx, y: cy });
             this.course.x = q.x;
@@ -723,7 +724,7 @@ export default class Editor {
      * @param cx x position in screen coordinates
      * @param cy y position in screen coordinates
      */
-    rotatePlot(cx, cy) {
+    rotatePlotBounds(cx, cy) {
         if(this.holeEdit == 18) {
             let q = this.xfScreenToRef({ x: cx, y: cy });
             let cr = -Math.atan2(q.y-this.course.y, q.x-this.course.x);

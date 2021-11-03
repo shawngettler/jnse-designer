@@ -95,6 +95,8 @@ import Toolbar from "./ui/Toolbar.js";
         for(let i = 0; i < 18; i++) {
             holeParInput[i].value = project.course.holeData[i].par - 3;
             holeLengthInput[i].value = Math.round(project.course.getHoleLength(i));
+            holeQuoteInput[i].value = project.course.holes[i].quote;
+            holeWallInput[i].value = project.course.holes[i].wallStyle;
             if(project.course.holeData[i].v.length) {
                 holeCreateRouting[i].disabled = true;
                 holeEditRouting[i].disabled = false;
@@ -110,8 +112,6 @@ import Toolbar from "./ui/Toolbar.js";
                 holeEditPlot[i].disabled = true;
                 holeMovePlot[i].disabled = true;
             }
-            holeQuoteInput[i].value = project.course.holes[i].quote;
-            holeWallInput[i].value = project.course.holes[i].wallStyle;
         }
     };
 
@@ -135,6 +135,9 @@ import Toolbar from "./ui/Toolbar.js";
                     let bytes = new Uint8Array(e.target.result);
                     if(ext === "PRC") {
                         project.course.loadData(bytes);
+                        for(let i = 0; i < 19; i++) {
+                            editor.renderPlot(i);
+                        }
                         editor.update();
                     }
                     if(ext === "LDM") {

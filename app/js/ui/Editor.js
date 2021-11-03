@@ -684,9 +684,13 @@ export default class Editor {
     /**
      * Paint the plot and re-render.
      */
-    paintPlot(q) {
+    paintPlot() {
         let idx = Math.floor(this.paintPixel.x)+Math.floor(this.paintPixel.y)*240;
-        this.course.plot.terr[idx] = this.paintTerr;
+        if(this.holeEdit == 18) {
+            this.course.plot.terr[idx] = this.paintTerr;
+        } else {
+            this.course.holes[this.holeEdit].terr[idx] = this.paintTerr;
+        }
 
         this.renderPlot(this.holeEdit);
         this.update();

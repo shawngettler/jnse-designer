@@ -15,7 +15,7 @@ import Palette from "../golf/Palette.js";
 export default class Editor {
 
     // editor states
-    static LAYOUT_VIEW = "view hole layout";
+    static DEFAULT_VIEW = "view course";
     static LAYOUT_ADD = "add hole layout";
     static LAYOUT_EDIT = "edit hole layout";
     static PLOT_EDIT = "edit hole plot";
@@ -29,18 +29,11 @@ export default class Editor {
      * @param course Course object
      */
     constructor(course) {
-        let editorElement = document.createElement("div");
-        editorElement.id = "editor";
-        document.getElementById("app-container").appendChild(editorElement);
-        this.canvas = document.createElement("canvas");
-        this.canvas.id = "editor-canvas";
-        editorElement.appendChild(this.canvas);
-
 
         // editor
         this.course = course;
 
-        this.state = Editor.LAYOUT_VIEW;
+        this.state = Editor.DEFAULT_VIEW;
 
         this.plotAlpha = [];
         this.plotVisible = [];
@@ -54,6 +47,38 @@ export default class Editor {
             this.plotImages[i].height = i == 18 ? 120 : 80;
             this.renderPlot(i);
         }
+
+        let editorElement = document.createElement("div");
+        editorElement.id = "editor";
+        document.getElementById("app-container").appendChild(editorElement);
+        this.canvas = document.createElement("canvas");
+        this.canvas.id = "editor-canvas";
+        editorElement.appendChild(this.canvas);
+
+
+        // terrain palette
+        this.paintTerr = 0;
+        this.paintPixel = null;
+
+        this.paintTools = document.createElement("div");
+        this.paintTools.id = "editor-tools";
+        editorElement.appendChild(this.paintTools);
+        this.paintSwatches = [];
+        let paintSwatchTitles = ["Out of Bounds", "Tee Box", "Sand", "Water", "Rough", "Fairway", "Green", "Cart Path"];
+        for(let i = 0; i < 8; i++) {
+            let paintItem = document.createElement("div");
+            paintItem.classList.add("editor-tools-item");
+            this.paintTools.appendChild(paintItem);
+            this.paintSwatches[i] = document.createElement("div");
+            this.paintSwatches[i].classList.add("editor-tools-swatch");
+            this.paintSwatches[i].addEventListener("click", (e) => { this.setPaint(i); });
+            paintItem.appendChild(this.paintSwatches[i]);
+            let paintTitle = document.createElement("div");
+            paintTitle.classList.add("editor-tools-swatch-title");
+            paintTitle.appendChild(document.createTextNode(paintSwatchTitles[i]));
+            paintItem.appendChild(paintTitle);
+        }
+        this.hidePaintTools();
 
 
         // user input
@@ -93,6 +118,17 @@ export default class Editor {
                     this.canvas.style.cursor = "";
                 }
             }
+            if(this.state === Editor.PLOT_EDIT) {
+                this.paintPixel = this.queryPlot(e.offsetX, e.offsetY);
+                if(this.paintPixel) {
+                    this.canvas.style.cursor = "crosshair";
+                    if(e.buttons == 1) {
+                        this.paintPlot();
+                    }
+                } else {
+                    this.canvas.style.cursor = "";
+                }
+            }
         });
         this.canvas.addEventListener("mousedown", (e) => {
             if(this.state === Editor.LAYOUT_EDIT) {
@@ -110,6 +146,12 @@ export default class Editor {
                     this.canvas.style.cursor = "grabbing";
                 }
             }
+            if(this.state === Editor.PLOT_EDIT) {
+                this.paintPixel = this.queryPlot(e.offsetX, e.offsetY);
+                if(this.paintPixel && e.button == 0) {
+                    this.paintPlot();
+                }
+            }
         });
         this.canvas.addEventListener("mouseup", (e) => {
             if(this.state === Editor.LAYOUT_ADD) {
@@ -125,7 +167,7 @@ export default class Editor {
                     this.canvas.style.cursor = "move";
                 } else if(e.button == 2) {
                     this.holeEdit = -1;
-                    this.state = Editor.LAYOUT_VIEW;
+                    this.state = Editor.DEFAULT_VIEW;
                     this.update();
                 }
             }
@@ -138,7 +180,17 @@ export default class Editor {
                     this.canvas.style.cursor = "grab";
                 } else if(e.button == 2) {
                     this.holeEdit = -1;
-                    this.state = Editor.LAYOUT_VIEW;
+                    this.state = Editor.DEFAULT_VIEW;
+                    this.update();
+                }
+            }
+            if(this.state === Editor.PLOT_EDIT) {
+                if(e.button == 2) {
+                    this.holeEdit = -1;
+                    this.paintPixel = null;
+                    this.state = Editor.DEFAULT_VIEW;
+                    this.canvas.style.cursor = "";
+                    this.hidePaintTools();
                     this.update();
                 }
             }
@@ -223,6 +275,49 @@ export default class Editor {
         this.canvas.height = window.innerHeight;
 
         this.update();
+    }
+
+
+
+    /**
+     * Set the paint terrain.
+     *
+     * @param terr terrain code
+     */
+    setPaint(terr) {
+        this.paintTerr = terr;
+        this.updatePaintTools();
+    }
+
+    /**
+     * Redraw paint controls.
+     */
+    updatePaintTools() {
+        for(let i = 0; i < 8; i++) {
+            let rgba = this.course.palette.getRGBA(Palette.getTerrainIndex(i));
+            this.paintSwatches[i].style.backgroundColor = "rgba("+rgba[0]+","+rgba[1]+","+rgba[2]+",1.0)";
+
+            if(i == this.paintTerr) {
+                this.paintSwatches[i].classList.add("editor-tools-swatch-active");
+            } else {
+                this.paintSwatches[i].classList.remove("editor-tools-swatch-active");
+            }
+        }
+    }
+
+    /**
+     * Show the paint controls popup.
+     */
+    showPaintTools() {
+        this.updatePaintTools();
+        this.paintTools.style.visibility = "visible";
+    }
+
+    /**
+     * Hide the paint controls popup.
+     */
+    hidePaintTools() {
+        this.paintTools.style.visibility = "hidden";
     }
 
 
@@ -401,7 +496,7 @@ export default class Editor {
         this.course.holeData[hole].v = [];
         this.holeEdit = -1;
 
-        this.state = Editor.LAYOUT_VIEW;
+        this.state = Editor.DEFAULT_VIEW;
         this.canvas.style.cursor = "";
         this.update();
         this.canvas.dispatchEvent(new CustomEvent("courseupdate"));
@@ -449,7 +544,7 @@ export default class Editor {
         this.vertexMove = null;
         this.holeEdit = -1;
 
-        this.state = Editor.LAYOUT_VIEW;
+        this.state = Editor.DEFAULT_VIEW;
         this.canvas.style.cursor = "";
         this.update();
         this.canvas.dispatchEvent(new CustomEvent("courseupdate"));
@@ -558,6 +653,21 @@ export default class Editor {
         this.update();
     }
 
+
+    /**
+     * Edit the plot.
+     *
+     * @param hole hole number or 18 for course plot
+     */
+    editPlot(hole) {
+        this.holeEdit = hole;
+        this.plotVisible[hole] = true;
+
+        this.state = Editor.PLOT_EDIT;
+        this.showPaintTools();
+        this.update();
+    }
+
     /**
      * Move the plot (and routing).
      *
@@ -568,6 +678,17 @@ export default class Editor {
         this.plotVisible[hole] = true;
 
         this.state = Editor.PLOT_MOVE;
+        this.update();
+    }
+
+    /**
+     * Paint the plot and re-render.
+     */
+    paintPlot(q) {
+        let idx = Math.floor(this.paintPixel.x)+Math.floor(this.paintPixel.y)*240;
+        this.course.plot.terr[idx] = this.paintTerr;
+
+        this.renderPlot(this.holeEdit);
         this.update();
     }
 
@@ -655,6 +776,29 @@ export default class Editor {
         ctx.beginPath();
         ctx.arc(box[2].x, box[2].y, 4, 0, 2*Math.PI);
         ctx.stroke();
+    }
+
+    /**
+     * Check for the plot coordinate at the canvas position. Returns null if
+     * the cursor is off the plot.
+     *
+     * @param cx x position in screen coordinates
+     * @param cy y position in screen coordinates
+     *
+     * @return point object for the control point
+     */
+    queryPlot(cx, cy) {
+        if(this.holeEdit == 18) {
+            let q = this.xfScreenToPlot({ x: cx, y: cy });
+            if(q.x > 0 && q.x < 240 && q.y > 0 && q.y < 120) {
+                return { x: Math.floor(q.x), y: Math.floor(q.y) };
+            }
+        } else {
+            let q = this.xfScreenToHole({ x: cx, y: cy }, this.holeEdit);
+            if(q.x > 0 && q.x < 240 && q.y > 0 && q.y < 80) {
+                return { x: Math.floor(q.x), y: Math.floor(q.y) };            }
+        }
+        return null;
     }
 
     /**

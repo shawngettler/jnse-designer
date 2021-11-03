@@ -44,7 +44,7 @@ import Toolbar from "./ui/Toolbar.js";
     let coursePlot = toolbar.addPlot(courseGroup, editor.plotImages[18], (e) => { editor.plotAlpha[18] = e.target.value/100; editor.update(); });
     let coursePlotButtons = toolbar.addButtonGroup(courseGroup);
     let courseShowPlot = toolbar.addButton(coursePlotButtons, "Show Plot", (e) => { editor.showPlot(18); });
-    let courseEditPlot = toolbar.addButton(coursePlotButtons, "Edit Plot", null);
+    let courseEditPlot = toolbar.addButton(coursePlotButtons, "Edit Plot", (e) => { editor.editPlot(18); });
     let courseMovePlot = toolbar.addButton(coursePlotButtons, "Move Plot", (e) => { editor.movePlot(18); });
 
     let holeGroup = [];
@@ -74,7 +74,7 @@ import Toolbar from "./ui/Toolbar.js";
         holePlot[i] = toolbar.addPlot(holeGroup[i], editor.plotImages[i], (e) => { editor.plotAlpha[i] = e.target.value/100; editor.update(); });
         holePlotButtons[i] = toolbar.addButtonGroup(holeGroup[i]);
         holeShowPlot[i] = toolbar.addButton(holePlotButtons[i], "Show Plot", (e) => { editor.showPlot(i); });
-        holeEditPlot[i] = toolbar.addButton(holePlotButtons[i], "Edit Plot", null);
+        holeEditPlot[i] = toolbar.addButton(holePlotButtons[i], "Edit Plot", (e) => { editor.editPlot(i); });
         holeMovePlot[i] = toolbar.addButton(holePlotButtons[i], "Move Plot", (e) => { editor.movePlot(i); });
     }
 

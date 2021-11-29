@@ -118,4 +118,30 @@ export default class Course {
         this.palette.values = data.slice(536, 1304);
     }
 
+    /**
+     * Restore data from object.
+     *
+     * @param o object containing course data
+     */
+    restoreData(o) {
+        this.name = o.name;
+        this.x = o.x;
+        this.y = o.y;
+        this.r = o.r;
+
+        this.holeData = o.holeData;
+
+        this.holeOverlay = o.holeOverlay;
+        this.outOfBounds = o.outOfBounds;
+
+        this.palette.restoreData(o.palette);
+
+        this.plot.restoreData(o.plot);
+        for(let i = 0; i < 18; i++) {
+            this.holes[i].restoreData(o.holes[i]);
+        }
+
+        this.panorama.restoreData(o.panorama);
+    }
+
 }

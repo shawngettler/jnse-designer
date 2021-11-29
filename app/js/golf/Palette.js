@@ -316,4 +316,15 @@ export default class Palette {
         return Palette.TERRAIN_BASE[plotCode];
     }
 
+
+
+    /**
+    * Restore data from object.
+    *
+    * @param o object containing palette data
+    */
+   restoreData(o) {
+       this.values = o.values;
+   }
+
 }

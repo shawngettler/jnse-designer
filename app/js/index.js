@@ -29,8 +29,8 @@ import Toolbar from "./ui/Toolbar.js";
 
     let projectGroup = toolbar.addControlGroup("PROJECT");
     let projectButtons = toolbar.addButtonGroup(projectGroup);
-    let projectOpen = toolbar.addButton(projectButtons, "Open Project", null);
-    let projectSave = toolbar.addButton(projectButtons, "Save Project", null);
+    let projectOpen = toolbar.addButton(projectButtons, "Open Project", (e) => { openProject(); });
+    let projectSave = toolbar.addButton(projectButtons, "Save Project", (e) => { saveProject(); });
     let projectImport = toolbar.addButton(projectButtons, "Import Game Data", importGameData);
     let projectExport = toolbar.addButton(projectButtons, "Export Game Data", null);
     let projectFilenameInput = toolbar.addTextField(projectGroup, "Game Data Name", 8, (e) => { project.name = e.target.value; });
@@ -118,11 +118,35 @@ import Toolbar from "./ui/Toolbar.js";
 
 
     // file operations
+    function openProject() {
+        let inputElement = document.createElement("input");
+        inputElement.type = "file";
+        inputElement.addEventListener("change", (e) => {
+            const reader = new FileReader();
+            reader.addEventListener("load", (e) => {
+                project.restoreJSON(e.target.result);
+                for(let i = 0; i < 19; i++) {
+                    editor.renderPlot(i);
+                }
+                editor.update();
+                updateToolbar();
+            });
+            reader.readAsText(inputElement.files[0]);
+        });
+        inputElement.click();
+    }
+
+    function saveProject() {
+        let anchorElement = document.createElement("a");
+        anchorElement.href = project.saveJSON();
+        anchorElement.download = project.name+".json";
+        anchorElement.click();
+    }
+
     function importGameData() {
         let inputElement = document.createElement("input");
         inputElement.type = "file";
         inputElement.multiple = "true";
-        inputElement.click();
         inputElement.addEventListener("change", (e) => {
             for(let f of inputElement.files) {
                 let name = f.name.slice(0, f.name.lastIndexOf(".")).toUpperCase();
@@ -164,6 +188,7 @@ import Toolbar from "./ui/Toolbar.js";
                 reader.readAsArrayBuffer(f);
             }
         });
+        inputElement.click();
     }
 
 

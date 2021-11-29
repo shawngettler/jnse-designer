@@ -82,4 +82,22 @@ export default class Hole {
         this.elev = data.slice(20211, 39411);
     }
 
+    /**
+     * Restore data from object.
+     *
+     * @param o object containing hole data
+     */
+    restoreData(o) {
+        this.quote = o.quote;
+        this.wallStyle = o.wallStyle;
+
+        this.terr = o.terr;
+        this.elev = o.elev;
+
+        // objects
+        this.objects = o.objects;
+        this.tees = o.tees;
+        this.pins = o.pins;
+    }
+
 }

@@ -67,4 +67,20 @@ export default class Plot {
         this.elev = data.slice(29811, 58611);
     }
 
+    /**
+     * Restore data from object.
+     *
+     * @param o object containing plot data
+     */
+    restoreData(o) {
+        this.quote = o.quote;
+        this.windDir = o.windDir;
+        this.windSpeed = o.windSpeed;
+
+        this.terr = o.terr;
+        this.elev = o.elev;
+
+        this.objects = o.objects;
+    }
+
 }

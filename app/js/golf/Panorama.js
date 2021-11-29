@@ -32,4 +32,13 @@ export default class Panorama {
         this.image = data;
     }
 
+    /**
+     * Restore data from object.
+     *
+     * @param o object containing project data
+     */
+    restoreData(o) {
+        this.image = o.image;
+    }
+
 }

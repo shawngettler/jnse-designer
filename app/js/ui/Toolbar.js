@@ -214,6 +214,17 @@ export default class Toolbar {
         return buttonElement;
     }
 
+    /**
+     * Add a line break to a button group.
+     *
+     * @param group DOM element for the group of buttons
+     */
+    addButtonBreak(group) {
+        let buttonElement = document.createElement("button");
+        buttonElement.classList.add("button-break");
+        group.appendChild(buttonElement);
+    }
+
 
 
     /**

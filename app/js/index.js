@@ -21,7 +21,7 @@ import Toolbar from "./ui/Toolbar.js";
     let project = new Project();
 
     // editor interface
-    let editor = new Editor(project.course);
+    let editor = new Editor(project.course, project.refData);
     editor.canvas.addEventListener("courseupdate", (e) => { updateToolbar(); });
 
     // side bar
@@ -31,8 +31,11 @@ import Toolbar from "./ui/Toolbar.js";
     let projectButtons = toolbar.addButtonGroup(projectGroup);
     let projectOpen = toolbar.addButton(projectButtons, "Open Project", (e) => { openProject(); });
     let projectSave = toolbar.addButton(projectButtons, "Save Project", (e) => { saveProject(); });
+    let projectButtonBreak = toolbar.addButtonBreak(projectButtons);
     let projectImport = toolbar.addButton(projectButtons, "Import Game Data", importGameData);
     let projectExport = toolbar.addButton(projectButtons, "Export Game Data", null);
+    let projectImage = toolbar.addButton(projectButtons, "Add Image Reference", (e) => { openRef(); });
+    let projectDEM = toolbar.addButton(projectButtons, "Add Height Reference", null);
     let projectFilenameInput = toolbar.addTextField(projectGroup, "Game Data Name", 8, (e) => { project.name = e.target.value; });
 
     let courseGroup = toolbar.addControlGroup("COURSE");
@@ -64,7 +67,7 @@ import Toolbar from "./ui/Toolbar.js";
     for(let i = 0; i < 18; i++) {
         holeGroup[i] = toolbar.addControlGroup("HOLE "+(i+1));
         holeParInput[i] = toolbar.addDropdown(holeGroup[i], "Par", ["3", "4", "5"], (e) => { project.course.holeData[i].par = e.target.value + 3; });
-        holeLengthInput[i] = toolbar.addTextField(holeGroup[i], "Length");
+        holeLengthInput[i] = toolbar.addText(holeGroup[i], "Length");
         holeRoutingButtons[i] = toolbar.addButtonGroup(holeGroup[i]);
         holeCreateRouting[i] = toolbar.addButton(holeRoutingButtons[i], "Create Routing", (e) => { editor.createRouting(i); });
         holeEditRouting[i] = toolbar.addButton(holeRoutingButtons[i], "Edit Routing", (e) => { editor.editRouting(i); });
@@ -187,6 +190,24 @@ import Toolbar from "./ui/Toolbar.js";
                 });
                 reader.readAsArrayBuffer(f);
             }
+        });
+        inputElement.click();
+    }
+
+    function openRef() {
+        let inputElement = document.createElement("input");
+        inputElement.type = "file";
+        inputElement.addEventListener("change", (e) => {
+            const reader = new FileReader();
+            reader.addEventListener("load", (e) => {
+                let img = new Image();
+                img.src = e.target.result;
+                project.addImageReference(img, inputElement.files[0].name);
+
+                editor.update();
+                updateToolbar();
+            });
+            reader.readAsDataURL(inputElement.files[0]);
         });
         inputElement.click();
     }

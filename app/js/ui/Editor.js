@@ -27,11 +27,13 @@ export default class Editor {
      * Create interface.
      *
      * @param course Course object
+     * @param refData array of reference image objects
      */
-    constructor(course) {
+    constructor(course, refData) {
 
         // editor
         this.course = course;
+        this.refData = refData;
 
         this.state = Editor.DEFAULT_VIEW;
 
@@ -239,6 +241,10 @@ export default class Editor {
     update() {
         let ctx = this.canvas.getContext("2d");
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        for(let r of this.refData.images) {
+            this.drawRef(ctx, r);
+        }
 
         for(let i = 0; i < 19; i++) {
             if(this.plotVisible[i]) {
@@ -854,6 +860,39 @@ export default class Editor {
             return box(240, 120).map((p) => this.xfPlotToScreen(p));
         }
         return box(240, 80).map((p) => this.xfHoleToScreen(p, hole));
+    }
+
+    /**
+    * Draw the reference image to the editor.
+    *
+    * @param ctx drawing context
+    * @param ref reference data object
+    */
+    drawRef(ctx, ref) {
+        let box = this.getRefBounds(ref);
+        let dr = Math.atan2(box[3].y-box[0].y, box[3].x-box[0].x);
+        let ds = Math.sqrt((box[3].x-box[0].x)*(box[3].x-box[0].x)+(box[3].y-box[0].y)*(box[3].y-box[0].y)) / ref.image.width;
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.globalAlpha = 1;
+        ctx.transform(ds, 0, 0, ds, box[0].x, box[0].y);
+        ctx.rotate(dr);
+        ctx.drawImage(ref.image, 0, 0);
+
+        ctx.resetTransform();
+    }
+
+    /**
+     * Get reference image bounding box in screen coordinates.
+     *
+     * @param ref reference data object
+     *
+     * @return array of point objects in screen coordinates
+     */
+    getRefBounds(ref) {
+        const box = (w, h) => { return [{ x: 0, y: 0 }, { x: 0, y: h }, { x: w, y: h }, { x: w, y: 0 }]; };
+
+        return box(ref.image.width*ref.s, ref.image.height*ref.s).map((p) => this.xfRefToScreen(p));
     }
 
 

@@ -36,6 +36,7 @@ import Toolbar from "./ui/Toolbar.js";
     let projectExport = toolbar.addButton(projectButtons, "Export Game Data", null);
     let projectImage = toolbar.addButton(projectButtons, "Add Image Reference", (e) => { openRef(); });
     let projectDEM = toolbar.addButton(projectButtons, "Add Height Reference", null);
+    projectDEM.disabled = true;
     let projectFilenameInput = toolbar.addTextField(projectGroup, "Game Data Name", 8, (e) => { project.name = e.target.value; });
 
     let courseGroup = toolbar.addControlGroup("COURSE");
@@ -81,6 +82,12 @@ import Toolbar from "./ui/Toolbar.js";
         holeMovePlot[i] = toolbar.addButton(holePlotButtons[i], "Move Plot", (e) => { editor.movePlot(i); });
     }
 
+    let refGroup = [];
+    let refScaleInput = [];
+    let refImageButtons = [];
+    let refShowImage = [];
+    let refMoveImage = [];
+
     updateToolbar();
 
 
@@ -116,8 +123,24 @@ import Toolbar from "./ui/Toolbar.js";
                 holeMovePlot[i].disabled = true;
             }
         }
-    };
+    }
 
+    function updateReferences() {
+        for(let g of refGroup) {
+            toolbar.removeControlGroup(g);
+        }
+        refGroup = [];
+        for(let i = 0; i < project.refData.images.length; i++) {
+            let r = project.refData.images[i];
+            refGroup[i] = toolbar.addControlGroup("IMAGE: "+r.title);
+            refScaleInput[i] = toolbar.addTextField(refGroup[i], "Image Scale (ft/px)", 21, (e) => { r.s = e.target.value; });
+            refScaleInput[i].value = r.s;
+            refImageButtons[i] = toolbar.addButtonGroup(refGroup[i]);
+            refShowImage[i] = toolbar.addButton(refImageButtons[i], "Show Ref Image", (e) => { editor.showRef(r); });
+            refMoveImage[i] = toolbar.addButton(refImageButtons[i], "Move Ref Image", null);
+            refMoveImage[i].disabled = true;
+        }
+    }
 
 
     // file operations
@@ -133,6 +156,7 @@ import Toolbar from "./ui/Toolbar.js";
                 }
                 editor.update();
                 updateToolbar();
+                updateReferences();
             });
             reader.readAsText(inputElement.files[0]);
         });
@@ -206,6 +230,7 @@ import Toolbar from "./ui/Toolbar.js";
 
                 editor.update();
                 updateToolbar();
+                updateReferences();
             });
             reader.readAsDataURL(inputElement.files[0]);
         });

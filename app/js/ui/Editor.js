@@ -243,7 +243,9 @@ export default class Editor {
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         for(let r of this.refData.images) {
-            this.drawRef(ctx, r);
+            if(r.visible) {
+                this.drawRef(ctx, r);
+            }
         }
 
         for(let i = 0; i < 19; i++) {
@@ -657,6 +659,9 @@ export default class Editor {
      */
     showPlot(hole) {
         this.plotVisible[hole] = !this.plotVisible[hole];
+
+        this.state = Editor.DEFAULT_VIEW;
+        this.hidePaintTools();
         this.update();
     }
 
@@ -860,6 +865,17 @@ export default class Editor {
             return box(240, 120).map((p) => this.xfPlotToScreen(p));
         }
         return box(240, 80).map((p) => this.xfHoleToScreen(p, hole));
+    }
+
+    /**
+     * Show/hide the reference image.
+     *
+    * @param ref reference data object
+     */
+    showRef(ref) {
+        ref.visible = !ref.visible;
+
+        this.update();
     }
 
     /**

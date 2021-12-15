@@ -89,7 +89,8 @@ export default class Project {
             r: 0,
             s: 1,
             title: title,
-            image: img
+            image: img,
+            visible: true
         };
         this.refData.images.push(ref);
     }

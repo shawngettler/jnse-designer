@@ -76,6 +76,15 @@ export default class Toolbar {
     }
 
     /**
+     * Remove a container for a group of controls.
+     *
+     @ @param groupElement element for the group of controls
+     */
+    removeControlGroup(groupElement) {
+        this.container.removeChild(groupElement);
+    }
+
+    /**
      * Add a container to group buttons.
      *
      * @param group DOM element for the group of controls

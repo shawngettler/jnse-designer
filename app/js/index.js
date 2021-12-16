@@ -132,13 +132,12 @@ import Toolbar from "./ui/Toolbar.js";
         refGroup = [];
         for(let i = 0; i < project.refData.images.length; i++) {
             let r = project.refData.images[i];
-            refGroup[i] = toolbar.addControlGroup("IMAGE: "+r.title);
-            refScaleInput[i] = toolbar.addTextField(refGroup[i], "Image Scale (ft/px)", 21, (e) => { r.s = e.target.value; });
+            refGroup[i] = toolbar.addControlGroup("IMAGE "+r.title);
+            refScaleInput[i] = toolbar.addTextField(refGroup[i], "Image Scale (ft/px)", 21, (e) => { r.s = e.target.value; editor.update(); });
             refScaleInput[i].value = r.s;
             refImageButtons[i] = toolbar.addButtonGroup(refGroup[i]);
             refShowImage[i] = toolbar.addButton(refImageButtons[i], "Show Ref Image", (e) => { editor.showRef(r); });
-            refMoveImage[i] = toolbar.addButton(refImageButtons[i], "Move Ref Image", null);
-            refMoveImage[i].disabled = true;
+            refMoveImage[i] = toolbar.addButton(refImageButtons[i], "Move Ref Image", (e) => { editor.moveRef(r); });
         }
     }
 

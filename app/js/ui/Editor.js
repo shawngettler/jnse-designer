@@ -20,6 +20,7 @@ export default class Editor {
     static ROUTING_EDIT = "edit hole layout";
     static PLOT_EDIT = "edit hole plot";
     static PLOT_MOVE = "move hole plot";
+    static REF_MOVE = "move image referece";
 
 
 
@@ -86,6 +87,7 @@ export default class Editor {
         });
 
         this.holeEdit = -1;
+        this.refEdit = null;
 
         this.controlMove = null;
         this.controlRot = null;
@@ -132,6 +134,19 @@ export default class Editor {
                     this.canvas.style.cursor = "";
                 }
             }
+            if(this.state === Editor.REF_MOVE) {
+                if(this.controlMove) {
+                    this.moveRefBounds(e.offsetX, e.offsetY);
+                } else if(this.controlRot) {
+                    this.rotateRefBounds(e.offsetX, e.offsetY);
+                } else if(this.queryRefMove(e.offsetX, e.offsetY)) {
+                    this.canvas.style.cursor = "move";
+                } else if(this.queryRefRotate(e.offsetX, e.offsetY)) {
+                    this.canvas.style.cursor = "grab";
+                } else {
+                    this.canvas.style.cursor = "";
+                }
+            }
         });
         this.canvas.addEventListener("mousedown", (e) => {
             if(this.state === Editor.ROUTING_EDIT) {
@@ -153,6 +168,15 @@ export default class Editor {
                 this.paintPixel = this.queryPlot(e.offsetX, e.offsetY);
                 if(this.paintPixel && e.button == 0) {
                     this.paintPlot();
+                }
+            }
+            if(this.state === Editor.REF_MOVE) {
+                if(this.queryRefMove(e.offsetX, e.offsetY) && e.button == 0) {
+                    this.controlMove = this.queryRefMove(e.offsetX, e.offsetY);
+                    this.canvas.style.cursor = "none";
+                } else if(this.queryRefRotate(e.offsetX, e.offsetY) && e.button == 0) {
+                    this.controlRot = this.queryRefRotate(e.offsetX, e.offsetY);
+                    this.canvas.style.cursor = "grabbing";
                 }
             }
         });
@@ -194,6 +218,19 @@ export default class Editor {
                     this.state = Editor.DEFAULT_VIEW;
                     this.canvas.style.cursor = "";
                     this.hidePaintTools();
+                    this.update();
+                }
+            }
+            if(this.state === Editor.REF_MOVE) {
+                if(this.controlMove && e.button == 0) {
+                    this.controlMove = null;
+                    this.canvas.style.cursor = "move";
+                } else if(this.controlRot && e.button == 0) {
+                    this.controlRot = null;
+                    this.canvas.style.cursor = "grab";
+                } else if(e.button == 2) {
+                    this.refEdit = null;
+                    this.state = Editor.DEFAULT_VIEW;
                     this.update();
                 }
             }
@@ -245,6 +282,11 @@ export default class Editor {
         for(let r of this.refData.images) {
             if(r.visible) {
                 this.drawRef(ctx, r);
+            }
+            if(this.state === Editor.REF_MOVE && r == this.refEdit) {
+                ctx.strokeStyle = "rgba(252, 252, 0, 1.0)";
+                ctx.fillStyle = "rgba(252, 252, 0, 1.0)";
+                this.drawRefBounds(ctx, r);
             }
         }
 
@@ -867,6 +909,8 @@ export default class Editor {
         return box(240, 80).map((p) => this.xfHoleToScreen(p, hole));
     }
 
+
+
     /**
      * Show/hide the reference image.
      *
@@ -874,6 +918,49 @@ export default class Editor {
      */
     showRef(ref) {
         ref.visible = !ref.visible;
+
+        this.update();
+    }
+
+    /**
+     * Move the reference image.
+     *
+     * @param ref reference image
+     */
+    moveRef(ref) {
+        this.refEdit = ref;
+        this.refEdit.visible = true;
+
+        this.state = Editor.REF_MOVE;
+        this.update();
+    }
+
+    /**
+     * Modify reference image location.
+     *
+     * @param cx x position in screen coordinates
+     * @param cy y position in screen coordinates
+     */
+    moveRefBounds(cx, cy) {
+        let q = this.xfScreenToRef({ x: cx, y: cy });
+        this.refEdit.x = Math.floor(q.x);
+        this.refEdit.y = Math.floor(q.y);
+
+        this.update();
+    }
+
+    /**
+     * Rotate reference image. New angle based on new location of the
+     * opposite corner of the bounds.
+     *
+     * @param cx x position in screen coordinates
+     * @param cy y position in screen coordinates
+     */
+    rotateRefBounds(cx, cy) {
+        let q = this.xfScreenToRef({ x: cx, y: cy });
+        let cr = -Math.atan2(q.y-this.refEdit.y, q.x-this.refEdit.x);
+        let dr = Math.atan2(this.refEdit.image.height, this.refEdit.image.width);
+        this.refEdit.r = Math.floor((cr + dr)/(2*Math.PI) * 600);
 
         this.update();
     }
@@ -899,6 +986,65 @@ export default class Editor {
     }
 
     /**
+     * Draw the referece image bounds with controls.
+     *
+     * @param ctx drawing context
+    * @param ref reference data object
+     */
+    drawRefBounds(ctx, ref) {
+        let box = this.getRefBounds(ref);
+
+        ctx.lineWidth = 1.0;
+        ctx.beginPath()
+        for(let p of box) {
+            ctx.lineTo(p.x, p.y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+
+        ctx.fillRect(box[0].x-3, box[0].y-3, 6, 6);
+
+        ctx.beginPath();
+        ctx.arc(box[2].x, box[2].y, 4, 0, 2*Math.PI);
+        ctx.stroke();
+    }
+
+    /**
+     * Check for the reference image location control at the canvas position.
+     * Checks a 6x6 pixel box around the control.
+     *
+     * @param cx x position in screen coordinates
+     * @param cy y position in screen coordinates
+     *
+     * @return point object for the control point
+     */
+    queryRefMove(cx, cy) {
+        let box = this.getRefBounds(this.refEdit);
+        if(box[0].x-cx <= 3 && cx-box[0].x <= 3 && box[0].y-cy <= 3 && cy-box[0].y <= 3) {
+            return box[0];
+        }
+        return null;
+    }
+
+    /**
+     * Check for the reference image rotation control at the canvas position.
+     * Checks a 6x6 pixel box around the control.
+     *
+     * @param cx x position in screen coordinates
+     * @param cy y position in screen coordinates
+     *
+     * @return point object for the control point
+     */
+    queryRefRotate(cx, cy) {
+        let box = this.getRefBounds(this.refEdit);
+        if(box[2].x-cx <= 3 && cx-box[2].x <= 3 && box[2].y-cy <= 3 && cy-box[2].y <= 3) {
+            return box[2];
+        }
+        return null;
+    }
+
+
+    /**
      * Get reference image bounding box in screen coordinates.
      *
      * @param ref reference data object
@@ -908,7 +1054,11 @@ export default class Editor {
     getRefBounds(ref) {
         const box = (w, h) => { return [{ x: 0, y: 0 }, { x: 0, y: h }, { x: w, y: h }, { x: w, y: 0 }]; };
 
-        return box(ref.image.width*ref.s, ref.image.height*ref.s).map((p) => this.xfRefToScreen(p));
+        let rbox = box(ref.image.width, ref.image.height).map((p) => {
+            return this.xfPointFromCoords(p, -ref.r, ref.s, ref.x, ref.y);
+        });
+
+        return rbox.map((p) => this.xfRefToScreen(p));
     }
 
 

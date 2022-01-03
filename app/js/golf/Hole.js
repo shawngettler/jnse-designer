@@ -36,7 +36,7 @@ export default class Hole {
 
 
     /**
-     * Load hole plot from file.
+     * Load hole plot from game file.
      *
      * @param data expanded byte array from data file
      */
@@ -81,6 +81,40 @@ export default class Hole {
         this.terr = data.slice(1011, 20211);
         this.elev = data.slice(20211, 39411);
     }
+
+    /**
+     * Save hole plot to game file.
+     *
+     * @return byte array for file
+     */
+    saveData() {
+        let data = new Uint8Array(39411).fill(0);
+
+        data.set([this.objects.length], 0);
+        data.set([this.wallStyle], 9);
+        data.set(Array.from(this.quote).map(c => c.charCodeAt(0)), 20);
+        for(let i = 0; i < this.objects.length; i++) {
+            data.set([this.objects[i].type], 141+i);
+            data.set([this.objects[i].x], 391+i);
+            data.set([this.objects[i].y], 641+i);
+        }
+        for(let i = 0; i < this.tees.length; i++) {
+            data.set([this.objects[i].type], 382+i);
+            data.set([this.objects[i].x], 632+i);
+            data.set([this.objects[i].y], 882+i);
+        }
+        for(let i = 0; i < this.pins.length; i++) {
+            data.set([this.objects[i].type], 386+i);
+            data.set([this.objects[i].x], 636+i);
+            data.set([this.objects[i].y], 886+i);
+        }
+        data.set(this.terr, 1011);
+        data.set(this.elev, 20211);
+
+        return data;
+    }
+
+
 
     /**
      * Restore data from object.

@@ -8,6 +8,7 @@
 import Project from "./Project.js";
 
 import JNSEBinaryData from "./io/JNSEBinaryData.js";
+import ZipArchive from "./io/ZipArchive.js";
 
 import Editor from "./ui/Editor.js";
 import Toolbar from "./ui/Toolbar.js";
@@ -33,7 +34,7 @@ import Toolbar from "./ui/Toolbar.js";
     let projectSave = toolbar.addButton(projectButtons, "Save Project", (e) => { saveProject(); });
     let projectButtonBreak = toolbar.addButtonBreak(projectButtons);
     let projectImport = toolbar.addButton(projectButtons, "Import Game Data", importGameData);
-    let projectExport = toolbar.addButton(projectButtons, "Export Game Data", null);
+    let projectExport = toolbar.addButton(projectButtons, "Export Game Data", exportGameData);
     let projectImage = toolbar.addButton(projectButtons, "Add Image Reference", (e) => { openRef(); });
     let projectDEM = toolbar.addButton(projectButtons, "Add Height Reference", null);
     projectDEM.disabled = true;
@@ -205,16 +206,34 @@ import Toolbar from "./ui/Toolbar.js";
                     if(ext === "DZV") {
                         project.course.panorama.loadData(JNSEBinaryData.expandFile(bytes));
                     }
-                    if(ext === "OMM") {
-                    }
-                    if(ext === "MIN") {
-                    }
+                    // if(ext === "OMM") {
+                    // }
+                    // if(ext === "MIN") {
+                    // }
                     updateToolbar();
                 });
                 reader.readAsArrayBuffer(f);
             }
         });
         inputElement.click();
+    }
+
+    function exportGameData() {
+        let files = [];
+        files.push({ name: project.name+".PRC", data: project.course.saveData(), date: new Date() });
+        files.push({ name: project.name+".LDM", data: JNSEBinaryData.compressFile(project.course.plot.saveData()), date: new Date() });
+        for(let i = 0; i < 18; i++) {
+            files.push({ name: project.name+".H"+(i+1), data: JNSEBinaryData.compressFile(project.course.holes[i].saveData()), date: new Date() });
+        }
+        files.push({ name: project.name+".DZV", data: JNSEBinaryData.compressFile(project.course.panorama.saveData()), date: new Date() });
+        // files.push({ name: project.name+".OMM", data: null, date: new Date() });
+        // files.push({ name: project.name+".MIN", data: null, date: new Date() });
+        let zip = new Blob([ZipArchive.createArchive(files)], { type: "application/octet-stream" });
+
+        let anchorElement = document.createElement("a");
+        anchorElement.href = window.URL.createObjectURL(zip);
+        anchorElement.download = project.name+".zip";
+        anchorElement.click();
     }
 
     function openRef() {

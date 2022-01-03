@@ -81,7 +81,7 @@ export default class Course {
 
 
     /**
-     * Load course metadata from file. Data is always raw binary.
+     * Load course metadata from game file.
      *
      * @param data byte array from file
      */
@@ -117,6 +117,37 @@ export default class Course {
         // palette
         this.palette.values = data.slice(536, 1304);
     }
+
+    /**
+     * Save course metadata to game file.
+     *
+     * @return byte array for file
+     */
+    saveData() {
+        const uint8x2 = (i) => { return [(i >> 0) & 0xff, (i >> 8) & 0xff]; };
+
+        let data = new Uint8Array(1304).fill(0);
+
+        data.set(Array.from(this.name).map(c => c.charCodeAt(0)), 0);
+        for(let i = 0; i < 18; i++) {
+            data.set([this.holeData[i].par], 22+i);
+            data.set(uint8x2(this.holeData[i].x), 41+i*2);
+            data.set(uint8x2(this.holeData[i].y), 77+i*2);
+            data.set(uint8x2(this.holeData[i].r), 113+i*2);
+            data.set([this.holeData[i].v.length], 149+i);
+            for(let j = 0; j < this.holeData[i].v.length; j++) {
+                data.set(uint8x2(this.holeData[i].v[j].x), 167+i*10+j*2);
+                data.set(uint8x2(this.holeData[i].v[j].y), 347+i*10+j*2);
+            }
+        }
+        data.set([this.outOfBounds], 527);
+        data.set(this.holeOverlay, 528);
+        data.set(this.palette.values, 536);
+        
+        return data;
+    }
+
+
 
     /**
      * Restore data from object.

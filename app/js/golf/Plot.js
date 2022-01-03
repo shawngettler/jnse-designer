@@ -35,7 +35,7 @@ export default class Plot {
 
 
     /**
-     * Load course plot from file.
+     * Load course plot from game file.
      *
      * @param data expanded byte array from data file
      */
@@ -66,6 +66,31 @@ export default class Plot {
         this.terr = data.slice(1011, 29811);
         this.elev = data.slice(29811, 58611);
     }
+
+    /**
+     * Save course plot to game file.
+     *
+     * @return byte array for file
+     */
+    saveData() {
+        let data = new Uint8Array(58611).fill(0);
+
+        data.set([this.objects.length], 0);
+        data.set([this.windDir], 1);
+        data.set([this.windSpeed], 2);
+        data.set(Array.from(this.quote).map(c => c.charCodeAt(0)), 20);
+        for(let i = 0; i < this.objects.length; i++) {
+            data.set([this.objects[i].type], 141+i);
+            data.set([this.objects[i].x], 391+i);
+            data.set([this.objects[i].y], 641+i);
+        }
+        data.set(this.terr, 1011);
+        data.set(this.elev, 29811);
+
+        return data;
+    }
+
+
 
     /**
      * Restore data from object.

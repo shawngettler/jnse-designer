@@ -24,13 +24,24 @@ export default class Panorama {
 
 
     /**
-     * Load image from file.
+     * Load image from game file.
      *
      * @param data expanded byte array from file
      */
     loadData(data) {
         this.image = data;
     }
+
+    /**
+     * Save image to game file.
+     *
+     * @return byte array for file
+     */
+    saveData() {
+        return this.image;
+    }
+
+
 
     /**
      * Restore data from object.

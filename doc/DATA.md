@@ -23,7 +23,7 @@ add     size    data                    format
 0x00a7  180     hole layout point x     int16
 0x015b  180     hole layout point y     int16
 0x020f  1       out of bounds flag[3]   uint8
-0x0210  8       hole overlay flags[3]   uint8
+0x0210  8       hole overlay flags[4]   uint8
 0x0218  768     course palette          uint8, 256 rgb values
 
 [1] Rotation angle units are a 1/600 fraction of a circle, or 0.6 degrees.
@@ -133,7 +133,35 @@ The image is a 1200x47 bitmap where values are palette indices. The left edge of
 
 ### OMM File
 
-Object data. Values not yet understood.
+Object images. The expanded .OMM file is of variable length (though the course designer suggests there is a maximum size, presumably 64kB). Unlike other files with variable length data, the object image file has an expandable table rather than interleaved properties in a fixed data block.
+
+```
+add     size    data                    format
+
+0x0000  8       ??                      ??
+0x0008  1       objects n images        uint8
+0x0009  16      ??                      ??
+0x0019  n*8     start of table[1]       see below
+0x????  ??      start of images[2]      uint8
+
+[1] Entry 0 is reserved for the pin object and the image is not editable in
+    the course designer.
+[2] Object images begin immediately following the n*8 byte table. Each image
+    has a specified address.
+```
+
+The table entries are 8 bytes long and are formatted as follows:
+
+```
+add     size    data                    format
+
+0x00    2       image address           int16
+0x02    1       image width             uint8
+0x03    1       image height            uint8
+0x04    4       ??                      ??
+```
+
+Image sizes (and therefore the length of the bitmap data) are defined by the table. Bitmap values are palette indices, except that a value of 0 is transparent. Objects with zero width and height appear to be valid table entries, but do not show up in the course designer.
 
 
 ### MIN File
@@ -147,7 +175,7 @@ Course high scores.
 
 
 
-## Compression
+## Compressed Data
 
 Compressed data files have a 4-byte header indicating the type of compression and the size of the data.
 
@@ -170,7 +198,7 @@ If the length byte *n* is in the range 1-127, a series of *n* unique bytes follo
 The header file size indicates the size of the encoded file.
 
 
-### Proprietary Compression
+### Compression
 
 Most of the official course data is stored in a compressed format which has so far not been successfully reverse-engineered.
 
